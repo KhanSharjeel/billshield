@@ -12,12 +12,34 @@ class NepraEngine {
     double qtaRate = 0.0,
   }) {
     double totalUnits = offPeakUnits + peakUnits;
+
+    // If no appliances have been added, return zeroes across the board
+    if (totalUnits == 0) {
+      return {
+        'totalUnits': 0.0,
+        'energyCharge': 0.0,
+        'fixedCharge': 0.0,
+        'fpaCharge': 0.0,
+        'qtaCharge': 0.0,
+        'electricityDuty': 0.0,
+        'gst': 0.0,
+        'tvFee': 0.0,
+        'estimatedTotal': 0.0,
+        'isDangerZone': false,
+        'isToU': false,
+      };
+    }
+
     double energyCharge = 0.0;
     double fixedCharge = 0.0;
 
     // Provincial Electricity Duty logic based on Provider
     double electricityDutyRate = 0.015; // Default 1.5%
-    if (provider.contains('LESCO') || provider.contains('IESCO') || provider.contains('MEPCO') || provider.contains('FESCO') || provider.contains('GEPCO')) {
+    if (provider.contains('LESCO') ||
+        provider.contains('IESCO') ||
+        provider.contains('MEPCO') ||
+        provider.contains('FESCO') ||
+        provider.contains('GEPCO')) {
       electricityDutyRate = 0.02; // Punjab ~2.0%
     } else if (provider.contains('K-Electric') || provider.contains('HESCO')) {
       electricityDutyRate = 0.015; // Sindh ~1.5%
@@ -31,11 +53,11 @@ class NepraEngine {
     bool isToU = sanctionedLoadKw >= 5.0;
 
     if (isToU) {
-      // Approximate ToU Rates
+      // ToU Rates
       energyCharge = (peakUnits * 50.0) + (offPeakUnits * 35.0);
       fixedCharge = 500.0 * sanctionedLoadKw;
     } else {
-      // Standard Slab Logic (combines units)
+      // Standard Slab Logic
       if (isProtected && totalUnits <= 200) {
         if (totalUnits <= 100) {
           energyCharge = totalUnits * 10.54;
