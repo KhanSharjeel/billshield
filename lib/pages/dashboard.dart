@@ -6,17 +6,20 @@ class ApplianceItem {
   String name;
   double wattage;
   int quantity;
-  double hoursPerDay;
+  double offPeakHoursPerDay;
+  double peakHoursPerDay;
 
   ApplianceItem({
     required this.name,
     required this.wattage,
     required this.quantity,
-    required this.hoursPerDay,
+    required this.offPeakHoursPerDay,
+    required this.peakHoursPerDay,
   });
 
-  // (Watts * Quantity * Hours * 30 Days) / 1000 = kWh (Units) per month
-  double get monthlyUnits => (wattage * quantity * hoursPerDay * 30) / 1000.0;
+  double get monthlyOffPeakUnits => (wattage * quantity * offPeakHoursPerDay * 30) / 1000.0;
+  double get monthlyPeakUnits => (wattage * quantity * peakHoursPerDay * 30) / 1000.0;
+  double get totalMonthlyUnits => monthlyOffPeakUnits + monthlyPeakUnits;
 }
 
 class Dashboard extends StatefulWidget {
@@ -30,10 +33,9 @@ class _DashboardState extends State<Dashboard> {
   final GlobalKey<FormState> _formStateKey = GlobalKey<FormState>();
 
   // --- STATE VARIABLES ---
-  int _currentUnits = 0;
   double _fpaRate = 0.0;
   double _qtaRate = 0.0;
-  final double _sanctionedLoad = 1.0;
+  double _sanctionedLoad = 1.0;
   bool _isProtected = true;
 
   String _selectedProvider = 'IESCO (Islamabad)';
@@ -58,27 +60,29 @@ class _DashboardState extends State<Dashboard> {
     _calculateBill();
   }
 
+  double get _totalOffPeakUnits => _appliances.fold(0, (sum, item) => sum + item.monthlyOffPeakUnits);
+  double get _totalPeakUnits => _appliances.fold(0, (sum, item) => sum + item.monthlyPeakUnits);
+  double get _totalUnits => _totalOffPeakUnits + _totalPeakUnits;
+
   void _calculateBill() {
     setState(() {
       _billBreakdown = NepraEngine.calculateMonthlyBill(
-        consumedUnits: _currentUnits,
+        offPeakUnits: _totalOffPeakUnits,
+        peakUnits: _totalPeakUnits,
         isProtected: _isProtected,
         sanctionedLoadKw: _sanctionedLoad,
+        provider: _selectedProvider,
         fpaRate: _fpaRate,
         qtaRate: _qtaRate,
       );
     });
   }
 
-  void _submitCalculation() {
+  void _submitAdjustments() {
     if (_formStateKey.currentState!.validate()) {
       _formStateKey.currentState!.save();
       _calculateBill();
     }
-  }
-
-  double get _totalApplianceUnits {
-    return _appliances.fold(0, (sum, item) => sum + item.monthlyUnits);
   }
 
   // --- DIALOG FOR ADDING APPLIANCES ---
@@ -87,7 +91,8 @@ class _DashboardState extends State<Dashboard> {
     final TextEditingController nameController = TextEditingController(text: 'Standard Bulb');
     final TextEditingController wattController = TextEditingController(text: '50');
     final TextEditingController qtyController = TextEditingController(text: '1');
-    final TextEditingController hoursController = TextEditingController(text: '5');
+    final TextEditingController offPeakController = TextEditingController(text: '4');
+    final TextEditingController peakController = TextEditingController(text: '2');
 
     final Map<String, double> presets = {
       'LED Bulb (12W)': 12,
@@ -127,7 +132,6 @@ class _DashboardState extends State<Dashboard> {
                               nameController.text = '';
                               wattController.text = '';
                             } else {
-                              // Extract name without the wattage in parenthesis
                               nameController.text = val.split(' (')[0];
                               wattController.text = presets[val]!.toInt().toString();
                             }
@@ -141,20 +145,21 @@ class _DashboardState extends State<Dashboard> {
                       controller: nameController,
                       decoration: const InputDecoration(labelText: 'Appliance Name'),
                     ),
-                    TextField(
-                      controller: wattController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Power (Watts)'),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: wattController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Power (W)'))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: qtyController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Qty'))),
+                      ],
                     ),
-                    TextField(
-                      controller: qtyController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Quantity'),
-                    ),
-                    TextField(
-                      controller: hoursController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Daily Usage (Hours)'),
+                    const SizedBox(height: 10),
+                    const Text("Usage Profile", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: offPeakController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Off-Peak Hrs'))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: peakController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Peak Hrs (5pm-11pm)'))),
+                      ],
                     ),
                   ],
                 ),
@@ -170,16 +175,19 @@ class _DashboardState extends State<Dashboard> {
                     final name = nameController.text.trim();
                     final watts = double.tryParse(wattController.text) ?? 0;
                     final qty = int.tryParse(qtyController.text) ?? 1;
-                    final hours = double.tryParse(hoursController.text) ?? 0;
+                    final offPeak = double.tryParse(offPeakController.text) ?? 0;
+                    final peak = double.tryParse(peakController.text) ?? 0;
 
-                    if (name.isNotEmpty && watts > 0) {
+                    if (name.isNotEmpty && watts > 0 && (offPeak > 0 || peak > 0)) {
                       setState(() {
                         _appliances.add(ApplianceItem(
                           name: name,
                           wattage: watts,
                           quantity: qty,
-                          hoursPerDay: hours,
+                          offPeakHoursPerDay: offPeak,
+                          peakHoursPerDay: peak,
                         ));
+                        _calculateBill(); // Auto-calculate on add
                       });
                       Navigator.pop(context);
                     }
@@ -197,7 +205,9 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     final bool inDangerZone = _billBreakdown['isDangerZone'] ?? false;
+    final bool isToU = _billBreakdown['isToU'] ?? false;
     final double total = _billBreakdown['estimatedTotal'] ?? 0.0;
+    final double finalUnits = _billBreakdown['totalUnits'] ?? 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -224,7 +234,7 @@ class _DashboardState extends State<Dashboard> {
                       const Text("Provider:", style: TextStyle(fontWeight: FontWeight.bold)),
                       DropdownButton<String>(
                         value: _selectedProvider,
-                        underline: const SizedBox(), // Removes the default underline
+                        underline: const SizedBox(),
                         items: _providers.map((String provider) {
                           return DropdownMenuItem<String>(
                             value: provider,
@@ -235,6 +245,7 @@ class _DashboardState extends State<Dashboard> {
                           if (val != null) {
                             setState(() {
                               _selectedProvider = val;
+                              _calculateBill();
                             });
                           }
                         },
@@ -244,7 +255,7 @@ class _DashboardState extends State<Dashboard> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- DANGER ZONE WARNING ---
+                // --- STATUS DASHBOARD ---
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 500),
                   curve: Curves.elasticOut,
@@ -259,16 +270,16 @@ class _DashboardState extends State<Dashboard> {
                   child: Column(
                     children: <Widget>[
                       Text(
-                        inDangerZone ? "DANGER ZONE: Near 200 Units!" : "Status: Protected Consumer",
+                        isToU ? "Status: ToU (Peak/Off-Peak)" : (inDangerZone ? "DANGER ZONE: Near 200 Units!" : "Status: Standard Slab Consumer"),
                         style: TextStyle(
-                          fontSize: 18.0,
+                          fontSize: 16.0,
                           fontWeight: FontWeight.bold,
                           color: inDangerZone ? Colors.red.shade900 : Colors.teal.shade900,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text("Estimated Bill: PKR ${total.toStringAsFixed(0)}", style: const TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
-                      Text("Current Load: $_currentUnits Units", style: const TextStyle(fontSize: 14.0)),
+                      Text("Generated Load: ${finalUnits.toStringAsFixed(1)} Units", style: const TextStyle(fontSize: 14.0)),
                     ],
                   ),
                 ),
@@ -295,12 +306,12 @@ class _DashboardState extends State<Dashboard> {
                           )
                         ],
                       ),
-                      const Text("Calculate how devices impact your bill.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const Text("Your bill is generated automatically from this list.", style: TextStyle(fontSize: 12, color: Colors.grey)),
                       const Divider(),
                       if (_appliances.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(16.0),
-                          child: Center(child: Text("Tap '+' to add devices (e.g. 50W Bulb)")),
+                          child: Center(child: Text("Tap '+' to power on appliances")),
                         ),
                       ..._appliances.asMap().entries.map((entry) {
                         int idx = entry.key;
@@ -309,49 +320,25 @@ class _DashboardState extends State<Dashboard> {
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: Text("${item.quantity}x ${item.name} (${item.wattage.toInt()}W)"),
-                          subtitle: Text("${item.hoursPerDay} hrs/day = ${item.monthlyUnits.toStringAsFixed(1)} Units"),
+                          subtitle: Text("Off-Peak: ${item.monthlyOffPeakUnits.toStringAsFixed(1)}U | Peak: ${item.monthlyPeakUnits.toStringAsFixed(1)}U"),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.redAccent),
                             onPressed: () {
                               setState(() {
                                 _appliances.removeAt(idx);
+                                _calculateBill(); // Auto-calculate on remove
                               });
                             },
                           ),
                         );
                       }).toList(),
-                      if (_appliances.isNotEmpty) ...[
-                        const Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text("Simulator Total:", style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text("${_totalApplianceUnits.toStringAsFixed(1)} Units", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-                            icon: const Icon(Icons.sync),
-                            label: const Text("Sync Simulator to Main Bill"),
-                            onPressed: () {
-                              setState(() {
-                                _currentUnits = _totalApplianceUnits.round();
-                                _calculateBill(); // Recalculate bill with synced units
-                              });
-                            },
-                          ),
-                        )
-                      ]
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // --- MANUAL UNIT INPUT & ADJUSTMENTS ---
+                // --- ACCOUNT & TARIFF ADJUSTMENTS ---
                 Form(
                   key: _formStateKey,
                   autovalidateMode: AutovalidateMode.always,
@@ -364,18 +351,17 @@ class _DashboardState extends State<Dashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const Text("Manual Adjustment", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text("Account Details & Adjustments", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         TextFormField(
-                          initialValue: _currentUnits.toString(),
+                          initialValue: _sanctionedLoad.toString(),
                           decoration: const InputDecoration(
-                            labelText: 'Consumed Units',
+                            labelText: 'Sanctioned Load (kW)',
                             border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.flash_on),
+                            helperText: 'Loads ≥ 5kW trigger ToU (Peak) billing.',
                           ),
                           keyboardType: TextInputType.number,
-                          validator: (value) => (value == null || value.isEmpty) ? 'Units required' : null,
-                          onSaved: (value) => _currentUnits = int.tryParse(value ?? '') ?? 0,
+                          onSaved: (value) => _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -383,10 +369,7 @@ class _DashboardState extends State<Dashboard> {
                             Expanded(
                               child: TextFormField(
                                 initialValue: _fpaRate.toString(),
-                                decoration: const InputDecoration(
-                                  labelText: 'FPA Rate',
-                                  border: OutlineInputBorder(),
-                                ),
+                                decoration: const InputDecoration(labelText: 'FPA Rate', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 onSaved: (value) => _fpaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
@@ -395,10 +378,7 @@ class _DashboardState extends State<Dashboard> {
                             Expanded(
                               child: TextFormField(
                                 initialValue: _qtaRate.toString(),
-                                decoration: const InputDecoration(
-                                  labelText: 'QTA Rate',
-                                  border: OutlineInputBorder(),
-                                ),
+                                decoration: const InputDecoration(labelText: 'QTA Rate', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 onSaved: (value) => _qtaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
@@ -409,12 +389,9 @@ class _DashboardState extends State<Dashboard> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Calculate Bill'),
-                            onPressed: () => _submitCalculation(),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                            child: const Text('Apply Tariffs & Calculate'),
+                            onPressed: () => _submitAdjustments(),
                           ),
                         ),
                       ],
