@@ -363,13 +363,41 @@ class _DashboardState extends State<Dashboard> {
                           keyboardType: TextInputType.number,
                           onSaved: (value) => _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+
+                        // --- PLAIN ENGLISH EXPLANATION BOX ---
+                        Container(
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 28),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for this month's exact rates to get a 100% accurate prediction.",
+                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
                         Row(
                           children: <Widget>[
                             Expanded(
                               child: TextFormField(
                                 initialValue: _fpaRate.toString(),
-                                decoration: const InputDecoration(labelText: 'FPA Rate', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(
+                                    labelText: 'FPA Rate (Fuel)',
+                                    hintText: 'e.g. 2.5',
+                                    border: OutlineInputBorder()
+                                ),
                                 keyboardType: TextInputType.number,
                                 onSaved: (value) => _fpaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
@@ -378,7 +406,11 @@ class _DashboardState extends State<Dashboard> {
                             Expanded(
                               child: TextFormField(
                                 initialValue: _qtaRate.toString(),
-                                decoration: const InputDecoration(labelText: 'QTA Rate', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(
+                                    labelText: 'QTA Rate (Maint.)',
+                                    hintText: 'e.g. 1.2',
+                                    border: OutlineInputBorder()
+                                ),
                                 keyboardType: TextInputType.number,
                                 onSaved: (value) => _qtaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
