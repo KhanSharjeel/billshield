@@ -1,5 +1,5 @@
 class NepraEngine {
-  // --- Constants (FY2025-26 Tariff) ---
+
   static const double gstRate = 0.18;
   static const double tvFee = 35.0;
   static const double electricityDutyRate = 0.015; // 1.5%
