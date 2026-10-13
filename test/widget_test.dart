@@ -1,30 +1,34 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:billshield/main.dart';
 import 'package:billshield/nepra_engine.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('NepraEngine calculation test', () {
+    final resultProtected = NepraEngine.calculateMonthlyBill(
+      consumedUnits: 150,
+      isProtected: true,
+      sanctionedLoadKw: 1.0,
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(resultProtected['energyCharge'], equals(1704.5)); // (100 * 10.54) + (50 * 13.01) = 1054 + 650.5
+    expect(resultProtected['fixedCharge'], equals(300.0));
+    expect(resultProtected['isDangerZone'], equals(false));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    final resultDanger = NepraEngine.calculateMonthlyBill(
+      consumedUnits: 185,
+      isProtected: true,
+      sanctionedLoadKw: 1.0,
+    );
+    expect(resultDanger['isDangerZone'], equals(true));
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('BillShieldApp loads correctly', (WidgetTester tester) async {
+    await tester.pumpWidget(const BillShieldApp());
+
+    expect(find.text('BillShield'), findsWidgets);
+    expect(find.text('ESTIMATED MONTHLY BILL'), findsOneWidget);
+    expect(find.text('Usage & Account Settings'), findsOneWidget);
+    expect(find.text('Detailed Bill Breakdown'), findsOneWidget);
   });
 }
