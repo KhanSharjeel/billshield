@@ -108,5 +108,6 @@ class NepraEngine {
       'isDangerZone': isProtected && totalUnits >= 180 && totalUnits <= 200,
       'isToU': isToU,
     };
+
   }
 }
