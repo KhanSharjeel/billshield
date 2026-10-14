@@ -60,8 +60,19 @@ class _DashboardState extends State<Dashboard> {
     _calculateBill();
   }
 
-  double get _totalOffPeakUnits => _appliances.fold(0, (sum, item) => sum + item.monthlyOffPeakUnits);
-  double get _totalPeakUnits => _appliances.fold(0, (sum, item) => sum + item.monthlyPeakUnits);
+  // --- DYNAMIC PEAK HOURS TEXT ---
+  String get _peakHoursText {
+    if (_selectedProvider.contains('K-Electric')) {
+      return "Peak Hours: 6:30 PM–10:30 PM (Apr–Oct)  •  6:00 PM–10:00 PM (Nov–Mar)";
+    } else {
+      return "Peak Hours: 5 PM–9 PM (Dec–Feb)  •  6 PM–10 PM (Mar–May/Sep–Nov)  •  7 PM–11 PM (Jun–Aug)";
+    }
+  }
+
+  double get _totalOffPeakUnits =>
+      _appliances.fold(0, (sum, item) => sum + item.monthlyOffPeakUnits);
+  double get _totalPeakUnits =>
+      _appliances.fold(0, (sum, item) => sum + item.monthlyPeakUnits);
   double get _totalUnits => _totalOffPeakUnits + _totalPeakUnits;
 
   void _calculateBill() {
@@ -147,18 +158,44 @@ class _DashboardState extends State<Dashboard> {
                     ),
                     Row(
                       children: [
-                        Expanded(child: TextField(controller: wattController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Power (W)'))),
+                        Expanded(
+                          child: TextField(
+                            controller: wattController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Power (W)'),
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: TextField(controller: qtyController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Qty'))),
+                        Expanded(
+                          child: TextField(
+                            controller: qtyController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Qty'),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Text("Usage Profile", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const Text("Usage Profile",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     Row(
                       children: [
-                        Expanded(child: TextField(controller: offPeakController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Off-Peak Hrs'))),
+                        Expanded(
+                          child: TextField(
+                            controller: offPeakController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Off-Peak Hrs'),
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: TextField(controller: peakController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Peak Hrs (5pm-11pm)'))),
+                        Expanded(
+                          child: TextField(
+                            controller: peakController,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                            const InputDecoration(labelText: 'Peak Hrs (See Schedule)'),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -170,7 +207,8 @@ class _DashboardState extends State<Dashboard> {
                   child: const Text("Cancel"),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal, foregroundColor: Colors.white),
                   onPressed: () {
                     final name = nameController.text.trim();
                     final watts = double.tryParse(wattController.text) ?? 0;
@@ -187,7 +225,7 @@ class _DashboardState extends State<Dashboard> {
                           offPeakHoursPerDay: offPeak,
                           peakHoursPerDay: peak,
                         ));
-                        _calculateBill(); // Auto-calculate on add
+                        _calculateBill();
                       });
                       Navigator.pop(context);
                     }
@@ -220,7 +258,6 @@ class _DashboardState extends State<Dashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-
                 // --- PROVIDER SELECTION ---
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -253,6 +290,24 @@ class _DashboardState extends State<Dashboard> {
                     ],
                   ),
                 ),
+
+                // DYNAMIC PEAK HOURS TEXT
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.access_time, size: 14, color: Colors.teal),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _peakHoursText,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 16),
 
                 // --- STATUS DASHBOARD ---
@@ -261,7 +316,9 @@ class _DashboardState extends State<Dashboard> {
                   curve: Curves.elasticOut,
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    color: inDangerZone ? Colors.red.shade100 : Colors.teal.shade50,
+                    color: finalUnits == 0
+                        ? Colors.grey.shade100
+                        : (inDangerZone ? Colors.red.shade100 : Colors.teal.shade50),
                     borderRadius: BorderRadius.circular(10.0),
                     boxShadow: const [
                       BoxShadow(color: Colors.grey, blurRadius: 5.0, offset: Offset(0.0, 5.0))
@@ -270,16 +327,26 @@ class _DashboardState extends State<Dashboard> {
                   child: Column(
                     children: <Widget>[
                       Text(
-                        isToU ? "Status: ToU (Peak/Off-Peak)" : (inDangerZone ? "DANGER ZONE: Near 200 Units!" : "Status: Standard Slab Consumer"),
+                        finalUnits == 0
+                            ? "Status: No Active Load"
+                            : (isToU
+                            ? "Status: ToU (Peak/Off-Peak)"
+                            : (inDangerZone
+                            ? "DANGER ZONE: Near 200 Units!"
+                            : "Status: Standard Slab Consumer")),
                         style: TextStyle(
                           fontSize: 16.0,
                           fontWeight: FontWeight.bold,
-                          color: inDangerZone ? Colors.red.shade900 : Colors.teal.shade900,
+                          color: finalUnits == 0
+                              ? Colors.grey.shade800
+                              : (inDangerZone ? Colors.red.shade900 : Colors.teal.shade900),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text("Estimated Bill: PKR ${total.toStringAsFixed(0)}", style: const TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
-                      Text("Generated Load: ${finalUnits.toStringAsFixed(1)} Units", style: const TextStyle(fontSize: 14.0)),
+                      Text("Estimated Bill: PKR ${total.toStringAsFixed(0)}",
+                          style: const TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
+                      Text("Generated Load: ${finalUnits.toStringAsFixed(1)} Units",
+                          style: const TextStyle(fontSize: 14.0)),
                     ],
                   ),
                 ),
@@ -299,14 +366,16 @@ class _DashboardState extends State<Dashboard> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Appliance Simulator", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const Text("Appliance Simulator",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           IconButton(
                             icon: const Icon(Icons.add_circle, color: Colors.teal, size: 28),
                             onPressed: _showAddApplianceDialog,
                           )
                         ],
                       ),
-                      const Text("Your bill is generated automatically from this list.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const Text("Your bill is generated automatically from this list.",
+                          style: TextStyle(fontSize: 12, color: Colors.grey)),
                       const Divider(),
                       if (_appliances.isEmpty)
                         const Padding(
@@ -320,13 +389,14 @@ class _DashboardState extends State<Dashboard> {
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: Text("${item.quantity}x ${item.name} (${item.wattage.toInt()}W)"),
-                          subtitle: Text("Off-Peak: ${item.monthlyOffPeakUnits.toStringAsFixed(1)}U | Peak: ${item.monthlyPeakUnits.toStringAsFixed(1)}U"),
+                          subtitle: Text(
+                              "Off-Peak: ${item.monthlyOffPeakUnits.toStringAsFixed(1)}U | Peak: ${item.monthlyPeakUnits.toStringAsFixed(1)}U"),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.redAccent),
                             onPressed: () {
                               setState(() {
                                 _appliances.removeAt(idx);
-                                _calculateBill(); // Auto-calculate on remove
+                                _calculateBill();
                               });
                             },
                           ),
@@ -351,7 +421,8 @@ class _DashboardState extends State<Dashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const Text("Account Details & Adjustments", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        const Text("Account Details & Adjustments",
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         TextFormField(
                           initialValue: _sanctionedLoad.toString(),
@@ -365,7 +436,7 @@ class _DashboardState extends State<Dashboard> {
                         ),
                         const SizedBox(height: 16),
 
-                        // --- PLAIN ENGLISH EXPLANATION BOX ---
+                        // Explanation Box
                         Container(
                           padding: const EdgeInsets.all(12.0),
                           decoration: BoxDecoration(
@@ -396,8 +467,7 @@ class _DashboardState extends State<Dashboard> {
                                 decoration: const InputDecoration(
                                     labelText: 'FPA Rate (Fuel)',
                                     hintText: 'e.g. 2.5',
-                                    border: OutlineInputBorder()
-                                ),
+                                    border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 onSaved: (value) => _fpaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
@@ -409,8 +479,7 @@ class _DashboardState extends State<Dashboard> {
                                 decoration: const InputDecoration(
                                     labelText: 'QTA Rate (Maint.)',
                                     hintText: 'e.g. 1.2',
-                                    border: OutlineInputBorder()
-                                ),
+                                    border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 onSaved: (value) => _qtaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
@@ -421,7 +490,8 @@ class _DashboardState extends State<Dashboard> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal, foregroundColor: Colors.white),
                             child: const Text('Apply Tariffs & Calculate'),
                             onPressed: () => _submitAdjustments(),
                           ),
