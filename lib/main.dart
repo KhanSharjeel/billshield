@@ -14,7 +14,7 @@ class BillShieldApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.teal,
       ),
-      home: const DashboardScreen(), // This line is now fixed
+      home: const Dashboard(),
     );
   }
 }
