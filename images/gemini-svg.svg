@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <!-- Background: White -->
+  <rect width="800" height="600" fill="#FFFFFF" />
+  
+  <defs>
+    <mask id="bolt-mask-mono">
+      <rect width="100%" height="100%" fill="white" />
+      <path d="M 412 140 L 356 252 L 405 252 L 377 350 L 447 224 L 391 224 Z" fill="black" />
+    </mask>
+  </defs>
+
+  <g transform="translate(0, -20)">
+    <!-- Symbol in Midnight Navy -->
+    <path d="M 400 120 L 498 155 Q 498 274 400 370 Q 302 274 302 155 Z" fill="#101B2D" mask="url(#bolt-mask-mono)" />
+
+    <!-- Wordmark in Midnight Navy -->
+    <text x="400" y="445" font-family="system-ui, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" text-anchor="middle" letter-spacing="0">
+      <tspan fill="#101B2D">Bill</tspan><tspan fill="#101B2D">Shield</tspan>
+    </text>
+  </g>
+</svg>
