@@ -1,10 +1,10 @@
 class NepraEngine {
-
+  // --- Constants (FY2025-26 Tariff) ---
   static const double gstRate = 0.18;
   static const double tvFee = 35.0;
   static const double electricityDutyRate = 0.015; // 1.5%
 
-  /// Calculates the estimated bill based on 6-month historical status..
+  /// Calculates the estimated bill based on 6-month historical status.
   static Map<String, dynamic> calculateMonthlyBill({
     required int consumedUnits,
     required bool isProtected,
