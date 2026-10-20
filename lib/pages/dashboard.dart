@@ -23,7 +23,14 @@ class ApplianceItem {
 }
 
 class Dashboard extends StatefulWidget {
-  const Dashboard({Key? key}) : super(key: key);
+  final ThemeMode currentThemeMode;
+  final ValueChanged<ThemeMode>? onThemeModeChanged;
+
+  const Dashboard({
+    Key? key,
+    this.currentThemeMode = ThemeMode.system,
+    this.onThemeModeChanged,
+  }) : super(key: key);
 
   @override
   _DashboardState createState() => _DashboardState();
@@ -259,21 +266,45 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+
     final bool inDangerZone = _billBreakdown['isDangerZone'] ?? false;
     final bool isToU = _billBreakdown['isToU'] ?? false;
     final double total = _billBreakdown['estimatedTotal'] ?? 0.0;
     final double finalUnits = _billBreakdown['totalUnits'] ?? 0.0;
 
+    final statusBgColor = finalUnits == 0
+        ? (isDark ? Colors.grey.shade800 : Colors.grey.shade100)
+        : (inDangerZone
+            ? (isDark ? Colors.red.shade900.withOpacity(0.5) : Colors.red.shade100)
+            : (isDark ? Colors.teal.shade900.withOpacity(0.5) : Colors.teal.shade50));
+
+    final statusTextColor = finalUnits == 0
+        ? (isDark ? Colors.grey.shade300 : Colors.grey.shade800)
+        : (inDangerZone
+            ? (isDark ? Colors.red.shade200 : Colors.red.shade900)
+            : (isDark ? Colors.teal.shade200 : Colors.teal.shade900));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('BillShield — Unit Predictor'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // The actions list allows you to place widgets on the right side of the AppBar
         actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode : Icons.dark_mode,
+            ),
+            tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+            onPressed: () {
+              final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
+              widget.onThemeModeChanged?.call(newMode);
+            },
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8), // Optional: rounds the corners of your logo
+              borderRadius: BorderRadius.circular(8),
               child: Image.asset(
                 'images/logo2.jpg',
                 height: 40,
@@ -326,7 +357,11 @@ class _DashboardState extends State<Dashboard> {
                       Expanded(
                         child: Text(
                           _peakHoursText,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -340,12 +375,14 @@ class _DashboardState extends State<Dashboard> {
                   curve: Curves.elasticOut,
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    color: finalUnits == 0
-                        ? Colors.grey.shade100
-                        : (inDangerZone ? Colors.red.shade100 : Colors.teal.shade50),
+                    color: statusBgColor,
                     borderRadius: BorderRadius.circular(10.0),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.grey, blurRadius: 5.0, offset: Offset(0.0, 5.0))
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark ? Colors.black38 : Colors.grey.shade400,
+                        blurRadius: 5.0,
+                        offset: const Offset(0.0, 5.0),
+                      )
                     ],
                   ),
                   child: Column(
@@ -361,9 +398,7 @@ class _DashboardState extends State<Dashboard> {
                         style: TextStyle(
                           fontSize: 16.0,
                           fontWeight: FontWeight.bold,
-                          color: finalUnits == 0
-                              ? Colors.grey.shade800
-                              : (inDangerZone ? Colors.red.shade900 : Colors.teal.shade900),
+                          color: statusTextColor,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -381,7 +416,7 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: borderColor),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: Column(
@@ -398,8 +433,13 @@ class _DashboardState extends State<Dashboard> {
                           )
                         ],
                       ),
-                      const Text("Your bill is generated automatically from this list.",
-                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        "Your bill is generated automatically from this list.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey,
+                        ),
+                      ),
                       const Divider(),
                       if (_appliances.isEmpty)
                         const Padding(
@@ -439,7 +479,7 @@ class _DashboardState extends State<Dashboard> {
                   child: Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: borderColor),
                       borderRadius: BorderRadius.circular(10.0),
                     ),
                     child: Column(
@@ -480,18 +520,25 @@ class _DashboardState extends State<Dashboard> {
                         Container(
                           padding: const EdgeInsets.all(12.0),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: isDark ? Colors.blue.shade900.withOpacity(0.4) : Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(8.0),
-                            border: Border.all(color: Colors.blue.shade200),
+                            border: Border.all(color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 28),
+                              Icon(
+                                Icons.info_outline,
+                                color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                                size: 28,
+                              ),
                               const SizedBox(width: 12),
-                              const Expanded(
+                              Expanded(
                                 child: Text(
                                   "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for this month's exact rates to get a 100% accurate prediction.",
-                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade300 : Colors.black87,
+                                  ),
                                 ),
                               ),
                             ],

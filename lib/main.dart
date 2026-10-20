@@ -3,18 +3,46 @@ import 'pages/dashboard.dart';
 
 void main() => runApp(const BillShieldApp());
 
-class BillShieldApp extends StatelessWidget {
+class BillShieldApp extends StatefulWidget {
   const BillShieldApp({Key? key}) : super(key: key);
+
+  @override
+  State<BillShieldApp> createState() => _BillShieldAppState();
+}
+
+class _BillShieldAppState extends State<BillShieldApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleThemeMode(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'BillShield',
+      themeMode: _themeMode,
       theme: ThemeData(
-        primarySwatch: Colors.teal,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.light,
+        ),
       ),
-      home: const Dashboard(),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.dark,
+        ),
+      ),
+      home: Dashboard(
+        currentThemeMode: _themeMode,
+        onThemeModeChanged: _toggleThemeMode,
+      ),
     );
   }
 }
