@@ -26,9 +26,16 @@ void main() {
     expect(resultDanger['isDangerZone'], equals(true));
   });
 
-  testWidgets('BillShieldApp loads correctly', (WidgetTester tester) async {
+  testWidgets('BillShieldApp loads correctly and transitions from splash to dashboard', (WidgetTester tester) async {
     await tester.pumpWidget(const BillShieldApp());
 
+    // Initially displays Splash Screen
+    expect(find.text('BillShield'), findsWidgets);
+
+    // Fast-forward splash screen timer and animation
+    await tester.pumpAndSettle(const Duration(seconds: 3));
+
+    // After splash screen, Dashboard is displayed
     expect(find.text('BillShield — Unit Predictor'), findsOneWidget);
     expect(find.text('Appliance Simulator'), findsOneWidget);
     expect(find.text('Account Details & Adjustments'), findsOneWidget);
