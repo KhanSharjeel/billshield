@@ -103,11 +103,14 @@ class _DashboardState extends State<Dashboard> {
     if (_formStateKey.currentState!.validate()) {
       _formStateKey.currentState!.save();
       _calculateBill();
+      // Automatically show the popup after calculation if there is a load
+      if (_appliances.isNotEmpty) {
+        _showBillDetailsDialog();
+      }
     }
   }
 
   Future<void> _selectDate(BuildContext context, bool isStart) async {
-    // Check the live theme so the calendar matches perfectly
     final bool isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
     final DateTime? picked = await showDatePicker(
@@ -143,6 +146,68 @@ class _DashboardState extends State<Dashboard> {
         _calculateBill();
       });
     }
+  }
+
+  Widget _buildDetailRow(String label, double amount, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text("PKR ${amount.toStringAsFixed(2)}",
+              style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: Colors.teal)),
+        ],
+      ),
+    );
+  }
+
+  void _showBillDetailsDialog() {
+    final double energy = _billBreakdown['energyCharge'] ?? 0.0;
+    final double fixed = _billBreakdown['fixedCharge'] ?? 0.0;
+    final double fpa = _billBreakdown['fpaCharge'] ?? 0.0;
+    final double qta = _billBreakdown['qtaCharge'] ?? 0.0;
+    final double duty = _billBreakdown['electricityDuty'] ?? 0.0;
+    final double gst = _billBreakdown['gst'] ?? 0.0;
+    final double tv = _billBreakdown['tvFee'] ?? 0.0;
+    final double total = _billBreakdown['estimatedTotal'] ?? 0.0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.receipt_long, color: Colors.teal),
+              SizedBox(width: 8),
+              Text("Itemized Breakdown", style: TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow("Energy Charges", energy),
+                _buildDetailRow("Fixed Charges (Load)", fixed),
+                _buildDetailRow("FPA Surcharge", fpa),
+                _buildDetailRow("QTA Surcharge", qta),
+                _buildDetailRow("Electricity Duty (1.5%)", duty),
+                _buildDetailRow("GST (18%)", gst),
+                _buildDetailRow("TV Fee", tv),
+                const Divider(height: 24, thickness: 1.5),
+                _buildDetailRow("Grand Total", total, isBold: true),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close", style: TextStyle(color: Colors.teal)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showAddApplianceDialog() {
@@ -289,7 +354,6 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: This line actively checks the real global theme from main.dart
     final bool isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
     final bool inDangerZone = _billBreakdown['isDangerZone'] ?? false;
@@ -644,10 +708,11 @@ class _DashboardState extends State<Dashboard> {
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.teal, foregroundColor: Colors.white),
-                            child: const Text('Apply Tariffs & Calculate'),
+                            icon: const Icon(Icons.receipt_long, size: 18),
+                            label: const Text('Apply Tariffs & Calculate'),
                             onPressed: () => _submitAdjustments(),
                           ),
                         ),

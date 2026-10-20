@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'pages/dashboard.dart';
 import 'pages/splash_screen.dart';
 
 void main() => runApp(const BillShieldApp());
@@ -40,7 +39,6 @@ class _BillShieldAppState extends State<BillShieldApp> {
         ),
       ),
       themeMode: _themeMode,
-
       home: SplashScreen(
         isDarkMode: _themeMode == ThemeMode.dark,
         onThemeChanged: _toggleTheme,
