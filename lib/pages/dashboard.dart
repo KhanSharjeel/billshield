@@ -51,7 +51,15 @@ class _DashboardState extends State<Dashboard> {
     'QESCO (Quetta)',
   ];
 
-  final List<ApplianceItem> _appliances = [];
+  final List<ApplianceItem> _appliances = [
+    ApplianceItem(
+      name: 'Inverter AC 1.5 Ton',
+      wattage: 1200,
+      quantity: 1,
+      offPeakHoursPerDay: 4,
+      peakHoursPerDay: 2,
+    ),
+  ];
   Map<String, dynamic> _billBreakdown = {};
 
   @override
@@ -87,6 +95,15 @@ class _DashboardState extends State<Dashboard> {
         qtaRate: _qtaRate,
       );
     });
+  }
+
+  void _onProviderChanged(String? newProvider) {
+    if (newProvider != null && newProvider != _selectedProvider) {
+      setState(() {
+        _selectedProvider = newProvider;
+        _calculateBill();
+      });
+    }
   }
 
   void _submitAdjustments() {
@@ -275,36 +292,27 @@ class _DashboardState extends State<Dashboard> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 // --- PROVIDER SELECTION ---
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10.0),
+                DropdownButtonFormField<String>(
+                  value: _selectedProvider,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Electricity Provider (DISCO)',
+                    prefixIcon: const Icon(Icons.electric_bolt, color: Colors.teal),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("Provider:", style: TextStyle(fontWeight: FontWeight.bold)),
-                      DropdownButton<String>(
-                        value: _selectedProvider,
-                        underline: const SizedBox(),
-                        items: _providers.map((String provider) {
-                          return DropdownMenuItem<String>(
-                            value: provider,
-                            child: Text(provider),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedProvider = val;
-                              _calculateBill();
-                            });
-                          }
-                        },
+                  items: _providers.map((String provider) {
+                    return DropdownMenuItem<String>(
+                      value: provider,
+                      child: Text(
+                        provider,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ],
-                  ),
+                    );
+                  }).toList(),
+                  onChanged: _onProviderChanged,
                 ),
 
                 // DYNAMIC PEAK HOURS TEXT
@@ -439,7 +447,23 @@ class _DashboardState extends State<Dashboard> {
                       children: <Widget>[
                         const Text("Account Details & Adjustments",
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text("Protected Consumer Category",
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          subtitle: const Text("≤200 units/mo for last 6 consecutive months",
+                              style: TextStyle(fontSize: 12)),
+                          value: _isProtected,
+                          activeColor: Colors.teal,
+                          onChanged: (bool val) {
+                            setState(() {
+                              _isProtected = val;
+                              _calculateBill();
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 8),
                         TextFormField(
                           initialValue: _sanctionedLoad.toString(),
                           decoration: const InputDecoration(
