@@ -496,6 +496,37 @@ class _DashboardState extends State<Dashboard> {
                                 backgroundColor: Colors.teal, foregroundColor: Colors.white),
                             child: const Text('Apply Tariffs & Calculate'),
                             onPressed: () => _submitAdjustments(),
+                              Future<void> _selectDate(BuildContext context, bool isStart) async {
+                        final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: isStart ? _startDate : _endDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                        builder: (context, child) {
+                        return Theme(
+                        data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                        primary: Colors.teal, // Matches your app's theme
+                        onPrimary: Colors.white,
+                        onSurface: Colors.black,
+                        ),
+                        ),
+                        child: child!,
+                        );
+                        },
+                        );
+
+                        if (picked != null) {
+                        setState(() {
+                        if (isStart) {
+                        _startDate = picked;
+                        } else {
+                        _endDate = picked;
+                        }
+                        });
+                        }
+                        }
+
                           ),
                         ),
                       ],
