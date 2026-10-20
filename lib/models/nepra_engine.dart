@@ -1,5 +1,5 @@
 class NepraEngine {
-  static const double gstRate = 0.18;
+  static const double gstRate = 0.18; // 18%
   static const double tvFee = 35.0;
 
   static Map<String, dynamic> calculateMonthlyBill({
@@ -30,70 +30,36 @@ class NepraEngine {
       };
     }
 
+    // 1. Determine Tariff Type & Danger Zone
+    bool isToU = sanctionedLoadKw >= 5.0; // 5kW or more triggers Time of Use billing
+    bool isDangerZone = !isToU && isProtected && totalUnits >= 180 && totalUnits <= 200;
+
     double energyCharge = 0.0;
-    double fixedCharge = 0.0;
 
-    // Provincial Electricity Duty logic based on Provider
-    double electricityDutyRate = 0.015; // Default 1.5%
-    if (provider.contains('LESCO') ||
-        provider.contains('IESCO') ||
-        provider.contains('MEPCO') ||
-        provider.contains('FESCO') ||
-        provider.contains('GEPCO')) {
-      electricityDutyRate = 0.02; // Punjab ~2.0%
-    } else if (provider.contains('K-Electric') || provider.contains('HESCO')) {
-      electricityDutyRate = 0.015; // Sindh ~1.5%
-    } else if (provider.contains('PESCO')) {
-      electricityDutyRate = 0.015; // KPK ~1.5%
-    } else if (provider.contains('QESCO')) {
-      electricityDutyRate = 0.01; // Balochistan ~1.0%
-    }
-
-    // NEPRA Time of Use (ToU) Rule: >= 5kW load uses separate Peak/Off-Peak rates
-    bool isToU = sanctionedLoadKw >= 5.0;
-
+    // 2. Calculate Energy Charges
     if (isToU) {
-      // ToU Rates
-      energyCharge = (peakUnits * 50.0) + (offPeakUnits * 35.0);
-      fixedCharge = 500.0 * sanctionedLoadKw;
+      // Time of Use Rates (Approximate averages)
+      double offPeakRate = 35.0;
+      double peakRate = 50.0;
+      energyCharge = (offPeakUnits * offPeakRate) + (peakUnits * peakRate);
     } else {
-      // Standard Slab Logic
-      if (isProtected && totalUnits <= 200) {
-        if (totalUnits <= 100) {
-          energyCharge = totalUnits * 10.54;
-          fixedCharge = 200.0;
-        } else {
-          energyCharge = (100 * 10.54) + ((totalUnits - 100) * 13.01);
-          fixedCharge = 300.0;
-        }
-      } else {
-        if (totalUnits <= 100) {
-          energyCharge = totalUnits * 22.44;
-          fixedCharge = 275.0 * sanctionedLoadKw;
-        } else if (totalUnits <= 200) {
-          energyCharge = totalUnits * 28.91;
-          fixedCharge = 300.0 * sanctionedLoadKw;
-        } else if (totalUnits <= 300) {
-          energyCharge = totalUnits * 33.10;
-          fixedCharge = 350.0 * sanctionedLoadKw;
-        } else if (totalUnits <= 400) {
-          energyCharge = totalUnits * 36.46;
-          fixedCharge = 400.0 * sanctionedLoadKw;
-        } else {
-          energyCharge = totalUnits * 40.22;
-          fixedCharge = 675.0 * sanctionedLoadKw;
-        }
-      }
+      // Standard Slab Rates
+      double baseRate = isProtected ? 15.0 : 35.0;
+      energyCharge = totalUnits * baseRate;
     }
 
+    // 3. Calculate Fixed Charges and Surcharges
+    double fixedCharge = (isProtected || isToU) ? 0.0 : (sanctionedLoadKw * 500.0);
     double fpaCharge = totalUnits * fpaRate;
     double qtaCharge = totalUnits * qtaRate;
-    double totalChargesBeforeTaxes = energyCharge + fixedCharge + fpaCharge + qtaCharge;
 
-    double electricityDuty = totalChargesBeforeTaxes * electricityDutyRate;
-    double gst = (totalChargesBeforeTaxes + electricityDuty) * gstRate;
+    // 4. Calculate Taxes
+    double electricityDuty = energyCharge * 0.015; // 1.5%
+    double taxableAmount = energyCharge + fixedCharge + fpaCharge + qtaCharge + electricityDuty;
+    double gst = taxableAmount * gstRate;
 
-    double estimatedTotal = totalChargesBeforeTaxes + electricityDuty + gst + tvFee;
+    // 5. Grand Total
+    double estimatedTotal = taxableAmount + gst + tvFee;
 
     return {
       'totalUnits': totalUnits,
@@ -105,9 +71,8 @@ class NepraEngine {
       'gst': gst,
       'tvFee': tvFee,
       'estimatedTotal': estimatedTotal,
-      'isDangerZone': isProtected && totalUnits >= 180 && totalUnits <= 200,
+      'isDangerZone': isDangerZone,
       'isToU': isToU,
     };
-
   }
 }

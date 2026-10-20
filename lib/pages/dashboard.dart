@@ -17,9 +17,9 @@ class ApplianceItem {
     required this.peakHoursPerDay,
   });
 
-  double get monthlyOffPeakUnits => (wattage * quantity * offPeakHoursPerDay * 30) / 1000.0;
-  double get monthlyPeakUnits => (wattage * quantity * peakHoursPerDay * 30) / 1000.0;
-  double get totalMonthlyUnits => monthlyOffPeakUnits + monthlyPeakUnits;
+  // Now dynamically accepts the exact number of days in the selected billing cycle!
+  double getMonthlyOffPeakUnits(int days) => (wattage * quantity * offPeakHoursPerDay * days) / 1000.0;
+  double getMonthlyPeakUnits(int days) => (wattage * quantity * peakHoursPerDay * days) / 1000.0;
 }
 
 class Dashboard extends StatefulWidget {
@@ -27,8 +27,6 @@ class Dashboard extends StatefulWidget {
 
   @override
   _DashboardState createState() => _DashboardState();
-  DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
-  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
 }
 
 class _DashboardState extends State<Dashboard> {
@@ -39,6 +37,10 @@ class _DashboardState extends State<Dashboard> {
   double _qtaRate = 0.0;
   double _sanctionedLoad = 1.0;
   bool _isProtected = true;
+
+  // --- DATE VARIABLES (Billing Cycle) ---
+  DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
 
   String _selectedProvider = 'IESCO (Islamabad)';
   final List<String> _providers = [
@@ -62,6 +64,12 @@ class _DashboardState extends State<Dashboard> {
     _calculateBill();
   }
 
+  // Calculates exact days between selected dates
+  int get _billingDays {
+    int days = _endDate.difference(_startDate).inDays + 1;
+    return days > 0 ? days : 1; // Prevent negative or zero days
+  }
+
   // --- DYNAMIC PEAK HOURS TEXT ---
   String get _peakHoursText {
     if (_selectedProvider.contains('K-Electric')) {
@@ -72,10 +80,9 @@ class _DashboardState extends State<Dashboard> {
   }
 
   double get _totalOffPeakUnits =>
-      _appliances.fold(0, (sum, item) => sum + item.monthlyOffPeakUnits);
+      _appliances.fold(0, (sum, item) => sum + item.getMonthlyOffPeakUnits(_billingDays));
   double get _totalPeakUnits =>
-      _appliances.fold(0, (sum, item) => sum + item.monthlyPeakUnits);
-  double get _totalUnits => _totalOffPeakUnits + _totalPeakUnits;
+      _appliances.fold(0, (sum, item) => sum + item.getMonthlyPeakUnits(_billingDays));
 
   void _calculateBill() {
     setState(() {
@@ -95,6 +102,47 @@ class _DashboardState extends State<Dashboard> {
     if (_formStateKey.currentState!.validate()) {
       _formStateKey.currentState!.save();
       _calculateBill();
+    }
+  }
+
+  // --- CALENDAR DATE PICKER ---
+  Future<void> _selectDate(BuildContext context, bool isStart) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isStart ? _startDate : _endDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.teal,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startDate = picked;
+          // Ensure end date is not before start date
+          if (_endDate.isBefore(_startDate)) {
+            _endDate = _startDate.add(const Duration(days: 30));
+          }
+        } else {
+          _endDate = picked;
+          // Ensure start date is not after end date
+          if (_startDate.isAfter(_endDate)) {
+            _startDate = _endDate.subtract(const Duration(days: 30));
+          }
+        }
+        _calculateBill(); // Recalculate bill with new date length
+      });
     }
   }
 
@@ -194,8 +242,7 @@ class _DashboardState extends State<Dashboard> {
                           child: TextField(
                             controller: peakController,
                             keyboardType: TextInputType.number,
-                            decoration:
-                            const InputDecoration(labelText: 'Peak Hrs (See Schedule)'),
+                            decoration: const InputDecoration(labelText: 'Peak Hrs'),
                           ),
                         ),
                       ],
@@ -252,6 +299,25 @@ class _DashboardState extends State<Dashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('BillShield Predictor'),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8), // Optional rounded corners for logo
+                child: Image.asset(
+                  'images/logo3.png', // Logo path (must match pubspec.yaml)
+                  height: 36,
+                  width: 36,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.shield, color: Colors.amber),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -312,6 +378,65 @@ class _DashboardState extends State<Dashboard> {
                 ),
                 const SizedBox(height: 16),
 
+                // --- BILLING CYCLE DATES ---
+                Container(
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _selectDate(context, true),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Billing Start", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 16, color: Colors.teal),
+                                  const SizedBox(width: 8),
+                                  Text("${_startDate.day}/${_startDate.month}/${_startDate.year}",
+                                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text("$_billingDays Days", style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _selectDate(context, false),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text("Billing End", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text("${_endDate.day}/${_endDate.month}/${_endDate.year}",
+                                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.event, size: 16, color: Colors.teal),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // --- STATUS DASHBOARD ---
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 500),
@@ -323,7 +448,7 @@ class _DashboardState extends State<Dashboard> {
                         : (inDangerZone ? Colors.red.shade100 : Colors.teal.shade50),
                     borderRadius: BorderRadius.circular(10.0),
                     boxShadow: const [
-                      BoxShadow(color: Colors.grey, blurRadius: 5.0, offset: Offset(0.0, 5.0))
+                      BoxShadow(color: Colors.black12, blurRadius: 5.0, offset: Offset(0.0, 5.0))
                     ],
                   ),
                   child: Column(
@@ -392,7 +517,7 @@ class _DashboardState extends State<Dashboard> {
                           contentPadding: EdgeInsets.zero,
                           title: Text("${item.quantity}x ${item.name} (${item.wattage.toInt()}W)"),
                           subtitle: Text(
-                              "Off-Peak: ${item.monthlyOffPeakUnits.toStringAsFixed(1)}U | Peak: ${item.monthlyPeakUnits.toStringAsFixed(1)}U"),
+                              "Off-Peak: ${item.getMonthlyOffPeakUnits(_billingDays).toStringAsFixed(1)}U | Peak: ${item.getMonthlyPeakUnits(_billingDays).toStringAsFixed(1)}U"),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.redAccent),
                             onPressed: () {
@@ -496,37 +621,6 @@ class _DashboardState extends State<Dashboard> {
                                 backgroundColor: Colors.teal, foregroundColor: Colors.white),
                             child: const Text('Apply Tariffs & Calculate'),
                             onPressed: () => _submitAdjustments(),
-                              Future<void> _selectDate(BuildContext context, bool isStart) async {
-                        final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: isStart ? _startDate : _endDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                        builder: (context, child) {
-                        return Theme(
-                        data: Theme.of(context).copyWith(
-                        colorScheme: const ColorScheme.light(
-                        primary: Colors.teal, // Matches your app's theme
-                        onPrimary: Colors.white,
-                        onSurface: Colors.black,
-                        ),
-                        ),
-                        child: child!,
-                        );
-                        },
-                        );
-
-                        if (picked != null) {
-                        setState(() {
-                        if (isStart) {
-                        _startDate = picked;
-                        } else {
-                        _endDate = picked;
-                        }
-                        });
-                        }
-                        }
-
                           ),
                         ),
                       ],
