@@ -291,15 +291,73 @@ class _DashboardState extends State<Dashboard> {
         title: const Text('BillShield — Unit Predictor'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Single-click Auto Toggle (Light <-> Dark)
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode : Icons.dark_mode,
             ),
-            tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+            tooltip: isDark ? 'Click to set Light Mode' : 'Click to set Dark Mode',
             onPressed: () {
               final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
               widget.onThemeModeChanged?.call(newMode);
             },
+          ),
+          // Explicit Theme Menu
+          PopupMenuButton<ThemeMode>(
+            icon: const Icon(Icons.palette_outlined),
+            tooltip: 'Select Theme Option',
+            initialValue: widget.currentThemeMode,
+            onSelected: (ThemeMode mode) {
+              widget.onThemeModeChanged?.call(mode);
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<ThemeMode>>[
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.light,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.light_mode,
+                      color: !isDark ? Colors.teal : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Light Mode',
+                      style: TextStyle(
+                        fontWeight: !isDark ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.dark,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.dark_mode,
+                      color: isDark ? Colors.teal : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        fontWeight: isDark ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<ThemeMode>(
+                value: ThemeMode.system,
+                child: Row(
+                  children: [
+                    Icon(Icons.brightness_auto),
+                    SizedBox(width: 8),
+                    Text('System Default'),
+                  ],
+                ),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -363,6 +421,58 @@ class _DashboardState extends State<Dashboard> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // --- THEME MODE SELECTOR CARD ---
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: borderColor),
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isDark ? Icons.dark_mode : Icons.light_mode,
+                            color: Colors.teal,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isDark ? "Dark Theme Active" : "Light Theme Active",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      SegmentedButton<ThemeMode>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment<ThemeMode>(
+                            value: ThemeMode.light,
+                            label: Text('Light'),
+                            icon: Icon(Icons.light_mode, size: 14),
+                          ),
+                          ButtonSegment<ThemeMode>(
+                            value: ThemeMode.dark,
+                            label: Text('Dark'),
+                            icon: Icon(Icons.dark_mode, size: 14),
+                          ),
+                        ],
+                        selected: {
+                          isDark ? ThemeMode.dark : ThemeMode.light
+                        },
+                        onSelectionChanged: (Set<ThemeMode> newSelection) {
+                          if (newSelection.isNotEmpty) {
+                            widget.onThemeModeChanged?.call(newSelection.first);
+                          }
+                        },
                       ),
                     ],
                   ),
