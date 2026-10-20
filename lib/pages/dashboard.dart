@@ -17,13 +17,21 @@ class ApplianceItem {
     required this.peakHoursPerDay,
   });
 
-  // Now dynamically accepts the exact number of days in the selected billing cycle!
+  // Now dynamically accepts the exact number of days in the selected billing cycle
   double getMonthlyOffPeakUnits(int days) => (wattage * quantity * offPeakHoursPerDay * days) / 1000.0;
   double getMonthlyPeakUnits(int days) => (wattage * quantity * peakHoursPerDay * days) / 1000.0;
 }
 
 class Dashboard extends StatefulWidget {
-  const Dashboard({Key? key}) : super(key: key);
+  // New variables to receive the theme state from main.dart
+  final bool isDarkMode;
+  final Function(bool) onThemeChanged;
+
+  const Dashboard({
+    Key? key,
+    required this.isDarkMode,
+    required this.onThemeChanged,
+  }) : super(key: key);
 
   @override
   _DashboardState createState() => _DashboardState();
@@ -115,11 +123,9 @@ class _DashboardState extends State<Dashboard> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.teal,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
+            colorScheme: widget.isDarkMode
+                ? const ColorScheme.dark(primary: Colors.tealAccent, onPrimary: Colors.black)
+                : const ColorScheme.light(primary: Colors.teal, onPrimary: Colors.white),
           ),
           child: child!,
         );
@@ -296,19 +302,37 @@ class _DashboardState extends State<Dashboard> {
     final double total = _billBreakdown['estimatedTotal'] ?? 0.0;
     final double finalUnits = _billBreakdown['totalUnits'] ?? 0.0;
 
+    // A helper to make the borders look nice in both dark and light modes
+    final Color borderColor = widget.isDarkMode ? Colors.white24 : Colors.grey.shade300;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BillShield'),
+        title: const Text('BillShield Predictor'),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
+          // --- THE NEW DARK MODE TOGGLE ---
+          Row(
+            children: [
+              Icon(widget.isDarkMode ? Icons.dark_mode : Icons.light_mode, size: 20),
+              Switch(
+                value: widget.isDarkMode,
+                onChanged: widget.onThemeChanged,
+                activeColor: Colors.tealAccent,
+                activeTrackColor: Colors.teal.shade700,
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: Colors.teal.shade300,
+              ),
+            ],
+          ),
+          // --- YOUR EXISTING LOGO ---
           Padding(
-            padding: const EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.only(right: 16.0, left: 4.0),
             child: Center(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(8), // Optional rounded corners for logo
+                borderRadius: BorderRadius.circular(8),
                 child: Image.asset(
-                  'images/logo3.png', // Logo path (must match pubspec.yaml)
+                  'images/logo3.png',
                   height: 36,
                   width: 36,
                   fit: BoxFit.cover,
@@ -330,7 +354,7 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: borderColor),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: Row(
@@ -365,12 +389,12 @@ class _DashboardState extends State<Dashboard> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.access_time, size: 14, color: Colors.teal),
+                      Icon(Icons.access_time, size: 14, color: widget.isDarkMode ? Colors.tealAccent : Colors.teal),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           _peakHoursText,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700, fontWeight: FontWeight.w500),
                         ),
                       ),
                     ],
@@ -382,7 +406,7 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: borderColor),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: Row(
@@ -393,11 +417,11 @@ class _DashboardState extends State<Dashboard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Billing Start", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text("Billing Start", style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.grey.shade400 : Colors.grey)),
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Icon(Icons.calendar_today, size: 16, color: Colors.teal),
+                                  Icon(Icons.calendar_today, size: 16, color: widget.isDarkMode ? Colors.tealAccent : Colors.teal),
                                   const SizedBox(width: 8),
                                   Text("${_startDate.day}/${_startDate.month}/${_startDate.year}",
                                       style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -409,7 +433,7 @@ class _DashboardState extends State<Dashboard> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text("$_billingDays Days", style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                        child: Text("$_billingDays Days", style: TextStyle(fontSize: 11, color: widget.isDarkMode ? Colors.tealAccent : Colors.teal, fontWeight: FontWeight.bold)),
                       ),
                       Expanded(
                         child: InkWell(
@@ -417,7 +441,7 @@ class _DashboardState extends State<Dashboard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text("Billing End", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text("Billing End", style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.grey.shade400 : Colors.grey)),
                               const SizedBox(height: 4),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
@@ -425,7 +449,7 @@ class _DashboardState extends State<Dashboard> {
                                   Text("${_endDate.day}/${_endDate.month}/${_endDate.year}",
                                       style: const TextStyle(fontWeight: FontWeight.bold)),
                                   const SizedBox(width: 8),
-                                  const Icon(Icons.event, size: 16, color: Colors.teal),
+                                  Icon(Icons.event, size: 16, color: widget.isDarkMode ? Colors.tealAccent : Colors.teal),
                                 ],
                               ),
                             ],
@@ -443,9 +467,12 @@ class _DashboardState extends State<Dashboard> {
                   curve: Curves.elasticOut,
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
+                    // These ternary operators ensure the colors look great in both Dark and Light modes!
                     color: finalUnits == 0
-                        ? Colors.grey.shade100
-                        : (inDangerZone ? Colors.red.shade100 : Colors.teal.shade50),
+                        ? (widget.isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100)
+                        : (inDangerZone
+                        ? (widget.isDarkMode ? Colors.red.shade900 : Colors.red.shade100)
+                        : (widget.isDarkMode ? Colors.teal.shade900 : Colors.teal.shade50)),
                     borderRadius: BorderRadius.circular(10.0),
                     boxShadow: const [
                       BoxShadow(color: Colors.black12, blurRadius: 5.0, offset: Offset(0.0, 5.0))
@@ -465,8 +492,10 @@ class _DashboardState extends State<Dashboard> {
                           fontSize: 16.0,
                           fontWeight: FontWeight.bold,
                           color: finalUnits == 0
-                              ? Colors.grey.shade800
-                              : (inDangerZone ? Colors.red.shade900 : Colors.teal.shade900),
+                              ? (widget.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800)
+                              : (inDangerZone
+                              ? (widget.isDarkMode ? Colors.red.shade100 : Colors.red.shade900)
+                              : (widget.isDarkMode ? Colors.tealAccent : Colors.teal.shade900)),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -484,7 +513,7 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: borderColor),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: Column(
@@ -496,13 +525,13 @@ class _DashboardState extends State<Dashboard> {
                           const Text("Appliance Simulator",
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           IconButton(
-                            icon: const Icon(Icons.add_circle, color: Colors.teal, size: 28),
+                            icon: Icon(Icons.add_circle, color: widget.isDarkMode ? Colors.tealAccent : Colors.teal, size: 28),
                             onPressed: _showAddApplianceDialog,
                           )
                         ],
                       ),
-                      const Text("Your bill is generated automatically from this list.",
-                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text("Your bill is generated automatically from this list.",
+                          style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.grey.shade400 : Colors.grey)),
                       const Divider(),
                       if (_appliances.isEmpty)
                         const Padding(
@@ -542,7 +571,7 @@ class _DashboardState extends State<Dashboard> {
                   child: Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: borderColor),
                       borderRadius: BorderRadius.circular(10.0),
                     ),
                     child: Column(
@@ -567,18 +596,18 @@ class _DashboardState extends State<Dashboard> {
                         Container(
                           padding: const EdgeInsets.all(12.0),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: widget.isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(8.0),
-                            border: Border.all(color: Colors.blue.shade200),
+                            border: Border.all(color: widget.isDarkMode ? Colors.blue.shade700 : Colors.blue.shade200),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 28),
+                              Icon(Icons.info_outline, color: widget.isDarkMode ? Colors.blueAccent : Colors.blue.shade700, size: 28),
                               const SizedBox(width: 12),
-                              const Expanded(
+                              Expanded(
                                 child: Text(
                                   "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for this month's exact rates to get a 100% accurate prediction.",
-                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                  style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.white70 : Colors.black87),
                                 ),
                               ),
                             ],
