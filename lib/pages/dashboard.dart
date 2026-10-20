@@ -40,6 +40,8 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   final GlobalKey<FormState> _formStateKey = GlobalKey<FormState>();
 
   late AnimationController _resetSpinController;
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
   late ScrollController _scrollController;
 
   late TextEditingController _sanctionedLoadController;
@@ -87,6 +89,22 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
     );
 
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -12.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -12.0, end: 12.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 12.0, end: -8.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+    ]).animate(CurvedAnimation(
+      parent: _shakeController,
+      curve: Curves.easeInOut,
+    ));
+
     _sanctionedLoadController = TextEditingController(text: _sanctionedLoad.toString());
     _fpaController = TextEditingController(text: _fpaRate.toString());
     _qtaController = TextEditingController(text: _qtaRate.toString());
@@ -97,6 +115,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   @override
   void dispose() {
     _resetSpinController.dispose();
+    _shakeController.dispose();
     _scrollController.dispose();
     _sanctionedLoadController.dispose();
     _fpaController.dispose();
@@ -179,49 +198,77 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
 
   void _submitAdjustments() {
     _resetSpinController.forward(from: 0.0);
-    if (_formStateKey.currentState!.validate()) {
-      _formStateKey.currentState!.save();
-      _calculateBill();
+    final isValid = _formStateKey.currentState?.validate() ?? false;
 
-      // Smooth scroll back to top Hero Card
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0.0,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-        );
-      }
+    if (!isValid) {
+      // Trigger horizontal shake animation on validation error
+      _shakeController.forward(from: 0.0);
 
-      final double newTotal = _billBreakdown['estimatedTotal'] ?? 0.0;
-
-      // Show immediate SnackBar feedback with View Breakdown action
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.tealAccent),
-              const SizedBox(width: 10),
+              Icon(Icons.error_outline_rounded, color: Colors.amberAccent),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Tariffs Applied! New Estimated Bill: PKR ${newTotal.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  'Invalid input values detected! Please enter valid numbers.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          backgroundColor: Colors.teal.shade900,
+          backgroundColor: Colors.red.shade900,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'View Breakdown',
-            textColor: Colors.tealAccent,
-            onPressed: _showBreakdownSheet,
-          ),
         ),
       );
+      return;
     }
+
+    _formStateKey.currentState!.save();
+    _calculateBill();
+
+    // Smooth scroll back to top Hero Card
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
+    final double newTotal = _billBreakdown['estimatedTotal'] ?? 0.0;
+
+    // Show immediate SnackBar feedback with View Breakdown action
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.tealAccent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Tariffs Applied! New Estimated Bill: PKR ${newTotal.toStringAsFixed(0)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.teal.shade900,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'View Breakdown',
+          textColor: Colors.tealAccent,
+          onPressed: _showBreakdownSheet,
+        ),
+      ),
+    );
   }
 
   IconData _getApplianceIcon(String name) {
@@ -873,133 +920,171 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
 
               const SizedBox(height: 16),
 
-              // --- ACCOUNT & TARIFF ADJUSTMENTS CARD ---
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Form(
-                    key: _formStateKey,
-                    autovalidateMode: AutovalidateMode.always,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Row(
-                          children: [
-                            Icon(Icons.tune_rounded, color: Colors.teal),
-                            SizedBox(width: 8),
-                            Text("Account Details & Adjustments",
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text("Protected Consumer Category",
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: const Text("≤200 units/mo for last 6 consecutive months",
-                              style: TextStyle(fontSize: 12)),
-                          value: _isProtected,
-                          activeColor: Colors.teal,
-                          onChanged: (bool val) {
-                            setState(() {
-                              _isProtected = val;
-                              _calculateBill();
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _sanctionedLoadController,
-                          decoration: InputDecoration(
-                            labelText: 'Sanctioned Load (kW)',
-                            prefixIcon: const Icon(Icons.flash_on_rounded),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            helperText: 'Loads ≥ 5kW trigger ToU (Peak) billing.',
-                          ),
-                          keyboardType: TextInputType.number,
-                          onSaved: (value) => _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12.0),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.blue.shade900.withOpacity(0.3)
-                                : Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12.0),
-                            border: Border.all(
-                                color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
-                          ),
-                          child: Row(
+              // --- ACCOUNT & TARIFF ADJUSTMENTS CARD WITH ANIMATED SHAKE ---
+              AnimatedBuilder(
+                animation: _shakeAnimation,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(_shakeAnimation.value, 0.0),
+                    child: child,
+                  );
+                },
+                child: Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Form(
+                      key: _formStateKey,
+                      autovalidateMode: AutovalidateMode.always,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Row(
                             children: [
-                              Icon(
-                                Icons.info_outline_rounded,
-                                color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
-                                size: 26,
+                              Icon(Icons.tune_rounded, color: Colors.teal),
+                              SizedBox(width: 8),
+                              Text("Account Details & Adjustments",
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text("Protected Consumer Category",
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            subtitle: const Text("≤200 units/mo for last 6 consecutive months",
+                                style: TextStyle(fontSize: 12)),
+                            value: _isProtected,
+                            activeColor: Colors.teal,
+                            onChanged: (bool val) {
+                              setState(() {
+                                _isProtected = val;
+                                _calculateBill();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _sanctionedLoadController,
+                            decoration: InputDecoration(
+                              labelText: 'Sanctioned Load (kW)',
+                              prefixIcon: const Icon(Icons.flash_on_rounded),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              helperText: 'Loads ≥ 5kW trigger ToU (Peak) billing.',
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter sanctioned load';
+                              }
+                              final num = double.tryParse(value.trim());
+                              if (num == null || num <= 0 || num > 100) {
+                                return 'Enter valid load (0.1 to 100 kW)';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) =>
+                                _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.blue.shade900.withOpacity(0.3)
+                                  : Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12.0),
+                              border: Border.all(
+                                  color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                                  size: 26,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for exact monthly rates.",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.grey.shade300 : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _fpaController,
+                                  decoration: InputDecoration(
+                                    labelText: 'FPA Rate (Fuel)',
+                                    hintText: 'e.g. 2.5',
+                                    border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) return null;
+                                    final num = double.tryParse(value.trim());
+                                    if (num == null || num < 0 || num > 50) {
+                                      return 'Rate 0 to 50';
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) =>
+                                      _fpaRate = double.tryParse(value ?? '') ?? 0.0,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: Text(
-                                  "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for exact monthly rates.",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? Colors.grey.shade300 : Colors.black87,
+                                child: TextFormField(
+                                  controller: _qtaController,
+                                  decoration: InputDecoration(
+                                    labelText: 'QTA Rate (Maint.)',
+                                    hintText: 'e.g. 1.2',
+                                    border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12)),
                                   ),
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) return null;
+                                    final num = double.tryParse(value.trim());
+                                    if (num == null || num < 0 || num > 50) {
+                                      return 'Rate 0 to 50';
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) =>
+                                      _qtaRate = double.tryParse(value ?? '') ?? 0.0,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: TextFormField(
-                                controller: _fpaController,
-                                decoration: InputDecoration(
-                                  labelText: 'FPA Rate (Fuel)',
-                                  hintText: 'e.g. 2.5',
-                                  border:
-                                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onSaved: (value) => _fpaRate = double.tryParse(value ?? '') ?? 0.0,
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.teal,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
+                              icon: const Icon(Icons.calculate_rounded),
+                              label: const Text('Apply Tariffs & Calculate',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              onPressed: () => _submitAdjustments(),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _qtaController,
-                                decoration: InputDecoration(
-                                  labelText: 'QTA Rate (Maint.)',
-                                  hintText: 'e.g. 1.2',
-                                  border:
-                                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onSaved: (value) => _qtaRate = double.tryParse(value ?? '') ?? 0.0,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                            icon: const Icon(Icons.calculate_rounded),
-                            label: const Text('Apply Tariffs & Calculate',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                            onPressed: () => _submitAdjustments(),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
