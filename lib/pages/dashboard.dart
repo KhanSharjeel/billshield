@@ -27,6 +27,8 @@ class Dashboard extends StatefulWidget {
 
   @override
   _DashboardState createState() => _DashboardState();
+  DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
 }
 
 class _DashboardState extends State<Dashboard> {
