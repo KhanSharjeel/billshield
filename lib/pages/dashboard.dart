@@ -36,8 +36,14 @@ class Dashboard extends StatefulWidget {
   _DashboardState createState() => _DashboardState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   final GlobalKey<FormState> _formStateKey = GlobalKey<FormState>();
+
+  late AnimationController _resetSpinController;
+
+  late TextEditingController _sanctionedLoadController;
+  late TextEditingController _fpaController;
+  late TextEditingController _qtaController;
 
   // --- STATE VARIABLES ---
   double _fpaRate = 0.0;
@@ -72,7 +78,26 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
+
+    _resetSpinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _sanctionedLoadController = TextEditingController(text: _sanctionedLoad.toString());
+    _fpaController = TextEditingController(text: _fpaRate.toString());
+    _qtaController = TextEditingController(text: _qtaRate.toString());
+
     _calculateBill();
+  }
+
+  @override
+  void dispose() {
+    _resetSpinController.dispose();
+    _sanctionedLoadController.dispose();
+    _fpaController.dispose();
+    _qtaController.dispose();
+    super.dispose();
   }
 
   // --- DYNAMIC PEAK HOURS TEXT ---
@@ -104,6 +129,24 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
+  void _resetDashboard() {
+    _resetSpinController.forward(from: 0.0);
+    setState(() {
+      _fpaRate = 0.0;
+      _qtaRate = 0.0;
+      _sanctionedLoad = 1.0;
+      _isProtected = true;
+      _selectedProvider = 'IESCO (Islamabad)';
+      _appliances.clear();
+
+      _sanctionedLoadController.text = '1.0';
+      _fpaController.text = '0.0';
+      _qtaController.text = '0.0';
+
+      _calculateBill();
+    });
+  }
+
   void _onProviderChanged(String? newProvider) {
     if (newProvider != null && newProvider != _selectedProvider) {
       setState(() {
@@ -114,6 +157,7 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _submitAdjustments() {
+    _resetSpinController.forward(from: 0.0);
     if (_formStateKey.currentState!.validate()) {
       _formStateKey.currentState!.save();
       _calculateBill();
@@ -401,6 +445,20 @@ class _DashboardState extends State<Dashboard> {
         title: const Text('BillShield — Unit Predictor'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Spinning Reset Refresh Button (360 degrees / 0.5s)
+          RotationTransition(
+            turns: Tween<double>(begin: 0.0, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _resetSpinController,
+                curve: Curves.easeInOutCubic,
+              ),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Reset Dashboard Values',
+              onPressed: _resetDashboard,
+            ),
+          ),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -791,7 +849,7 @@ class _DashboardState extends State<Dashboard> {
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
-                          initialValue: _sanctionedLoad.toString(),
+                          controller: _sanctionedLoadController,
                           decoration: InputDecoration(
                             labelText: 'Sanctioned Load (kW)',
                             prefixIcon: const Icon(Icons.flash_on_rounded),
@@ -837,7 +895,7 @@ class _DashboardState extends State<Dashboard> {
                           children: <Widget>[
                             Expanded(
                               child: TextFormField(
-                                initialValue: _fpaRate.toString(),
+                                controller: _fpaController,
                                 decoration: InputDecoration(
                                   labelText: 'FPA Rate (Fuel)',
                                   hintText: 'e.g. 2.5',
@@ -851,7 +909,7 @@ class _DashboardState extends State<Dashboard> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextFormField(
-                                initialValue: _qtaRate.toString(),
+                                controller: _qtaController,
                                 decoration: InputDecoration(
                                   labelText: 'QTA Rate (Maint.)',
                                   hintText: 'e.g. 1.2',
