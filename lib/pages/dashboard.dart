@@ -73,7 +73,7 @@ class _DashboardState extends State<Dashboard> {
   // --- DYNAMIC PEAK HOURS TEXT ---
   String get _peakHoursText {
     if (_selectedProvider.contains('K-Electric')) {
-      return "Peak Hours: 6:30 PM–10:30 PM (mar–Oct)  •  6:00 PM–10:00 PM (Nov–Mar)";
+      return "Peak Hours: 6:30 PM–10:30 PM (Apr–Oct)  •  6:00 PM–10:00 PM (Nov–Mar)";
     } else {
       return "Peak Hours: 5 PM–9 PM (Dec–Feb)  •  6 PM–10 PM (Mar–May/Sep–Nov)  •  7 PM–11 PM (Jun–Aug)";
     }
