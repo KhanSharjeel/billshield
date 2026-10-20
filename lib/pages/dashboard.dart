@@ -103,7 +103,6 @@ class _DashboardState extends State<Dashboard> {
     if (_formStateKey.currentState!.validate()) {
       _formStateKey.currentState!.save();
       _calculateBill();
-      // Automatically show the popup after calculation if there is a load
       if (_appliances.isNotEmpty) {
         _showBillDetailsDialog();
       }
@@ -169,7 +168,6 @@ class _DashboardState extends State<Dashboard> {
     final double qta = _billBreakdown['qtaCharge'] ?? 0.0;
     final double duty = _billBreakdown['electricityDuty'] ?? 0.0;
     final double gst = _billBreakdown['gst'] ?? 0.0;
-    final double tv = _billBreakdown['tvFee'] ?? 0.0;
     final double total = _billBreakdown['estimatedTotal'] ?? 0.0;
 
     showDialog(
@@ -193,7 +191,6 @@ class _DashboardState extends State<Dashboard> {
                 _buildDetailRow("QTA Surcharge", qta),
                 _buildDetailRow("Electricity Duty (1.5%)", duty),
                 _buildDetailRow("GST (18%)", gst),
-                _buildDetailRow("TV Fee", tv),
                 const Divider(height: 24, thickness: 1.5),
                 _buildDetailRow("Grand Total", total, isBold: true),
               ],

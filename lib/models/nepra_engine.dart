@@ -49,7 +49,6 @@ class NepraEngine {
     double taxableAmount = energyCharge + fixedCharge + fpaCharge + qtaCharge + electricityDuty;
     double gst = taxableAmount * gstRate;
 
-    // The TV Fee has been completely removed from the grand total
     double estimatedTotal = taxableAmount + gst;
 
     return {
