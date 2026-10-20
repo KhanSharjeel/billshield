@@ -41,7 +41,12 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
 
   late AnimationController _resetSpinController;
   late AnimationController _shakeController;
+  late AnimationController _floatingLogoController;
+
   late Animation<double> _shakeAnimation;
+  late Animation<double> _floatYAnimation;
+  late Animation<double> _floatXAnimation;
+
   late ScrollController _scrollController;
 
   late TextEditingController _sanctionedLoadController;
@@ -105,6 +110,26 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     ));
 
+    // Continuous floating logo animation (Looping non-centered float)
+    _floatingLogoController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+
+    _floatYAnimation = Tween<double>(begin: -8.0, end: 8.0).animate(
+      CurvedAnimation(
+        parent: _floatingLogoController,
+        curve: Curves.easeInOutSine,
+      ),
+    );
+
+    _floatXAnimation = Tween<double>(begin: -5.0, end: 5.0).animate(
+      CurvedAnimation(
+        parent: _floatingLogoController,
+        curve: Curves.easeInOutCubic,
+      ),
+    );
+
     _sanctionedLoadController = TextEditingController(text: _sanctionedLoad.toString());
     _fpaController = TextEditingController(text: _fpaRate.toString());
     _qtaController = TextEditingController(text: _qtaRate.toString());
@@ -116,6 +141,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   void dispose() {
     _resetSpinController.dispose();
     _shakeController.dispose();
+    _floatingLogoController.dispose();
     _scrollController.dispose();
     _sanctionedLoadController.dispose();
     _fpaController.dispose();
@@ -591,506 +617,554 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              // --- HERO ESTIMATED BILL CARD WITH PROTECTION GAUGE ---
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                color: isDark ? const Color(0xFF0F2926) : const Color(0xFFE6F4F1),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      // Badge Header Status
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: finalUnits == 0
-                              ? Colors.grey.withOpacity(0.2)
-                              : (inDangerZone
-                                  ? Colors.amber.shade700
-                                  : (_isProtected && finalUnits <= 200
-                                      ? Colors.teal
-                                      : Colors.red.shade700)),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              finalUnits == 0
-                                  ? Icons.power_off_rounded
+        child: Stack(
+          children: [
+            // Main Scrollable Content
+            SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // --- HERO ESTIMATED BILL CARD WITH PROTECTION GAUGE ---
+                  Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    color: isDark ? const Color(0xFF0F2926) : const Color(0xFFE6F4F1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          // Badge Header Status
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: finalUnits == 0
+                                  ? Colors.grey.withOpacity(0.2)
                                   : (inDangerZone
-                                      ? Icons.warning_amber_rounded
+                                      ? Colors.amber.shade700
                                       : (_isProtected && finalUnits <= 200
-                                          ? Icons.verified_user_rounded
-                                          : Icons.gpp_bad_rounded)),
-                              color: Colors.white,
-                              size: 16,
+                                          ? Colors.teal
+                                          : Colors.red.shade700)),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              finalUnits == 0
-                                  ? "No Active Appliances"
-                                  : (isToU
-                                      ? "ToU Peak/Off-Peak Active"
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  finalUnits == 0
+                                      ? Icons.power_off_rounded
                                       : (inDangerZone
-                                          ? "DANGER ZONE: ${200 - finalUnits.round()} Units Left!"
+                                          ? Icons.warning_amber_rounded
                                           : (_isProtected && finalUnits <= 200
-                                              ? "Protected Tariff Active"
-                                              : "Unprotected Slab Category"))),
-                              style: const TextStyle(
+                                              ? Icons.verified_user_rounded
+                                              : Icons.gpp_bad_rounded)),
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      Text(
-                        "ESTIMATED MONTHLY BILL",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                          color: isDark ? Colors.teal.shade200 : Colors.teal.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-
-                      Text(
-                        "PKR ${total.toStringAsFixed(0)}",
-                        style: TextStyle(
-                          fontSize: 38,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? Colors.white : const Color(0xFF0F766E),
-                        ),
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      Text(
-                        "Generated Usage: ${finalUnits.toStringAsFixed(1)} Units (kWh)",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // 200 Units Gauge Progress Bar
-                      if (_isProtected && !isToU) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text("0 Units", style: TextStyle(fontSize: 11)),
-                            Text(
-                              "${finalUnits.toStringAsFixed(0)} / 200 Units (Protected Limit)",
-                              style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: progressVal,
-                            minHeight: 8,
-                            backgroundColor: Colors.black12,
-                            color: inDangerZone
-                                ? Colors.amber.shade700
-                                : (finalUnits > 200 ? Colors.red : Colors.teal),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      TextButton.icon(
-                        icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                        label: const Text("View Itemized Tax Breakdown"),
-                        onPressed: _showBreakdownSheet,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // --- PROVIDER SELECTION CARD ---
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: _selectedProvider,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: 'Electricity Provider (DISCO)',
-                          prefixIcon: const Icon(Icons.electric_bolt, color: Colors.teal),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                        ),
-                        items: _providers.map((String provider) {
-                          return DropdownMenuItem<String>(
-                            value: provider,
-                            child: Text(
-                              provider,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: _onProviderChanged,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0, left: 4.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.access_time_rounded, size: 16, color: Colors.teal),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _peakHoursText,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                                  fontWeight: FontWeight.w500,
+                                  size: 16,
                                 ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  finalUnits == 0
+                                      ? "No Active Appliances"
+                                      : (isToU
+                                          ? "ToU Peak/Off-Peak Active"
+                                          : (inDangerZone
+                                              ? "DANGER ZONE: ${200 - finalUnits.round()} Units Left!"
+                                              : (_isProtected && finalUnits <= 200
+                                                  ? "Protected Tariff Active"
+                                                  : "Unprotected Slab Category"))),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          Text(
+                            "ESTIMATED MONTHLY BILL",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                              color: isDark ? Colors.teal.shade200 : Colors.teal.shade900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          Text(
+                            "PKR ${total.toStringAsFixed(0)}",
+                            style: TextStyle(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w900,
+                              color: isDark ? Colors.white : const Color(0xFF0F766E),
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text(
+                            "Generated Usage: ${finalUnits.toStringAsFixed(1)} Units (kWh)",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // 200 Units Gauge Progress Bar
+                          if (_isProtected && !isToU) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("0 Units", style: TextStyle(fontSize: 11)),
+                                Text(
+                                  "${finalUnits.toStringAsFixed(0)} / 200 Units (Protected Limit)",
+                                  style: const TextStyle(
+                                      fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: LinearProgressIndicator(
+                                value: progressVal,
+                                minHeight: 8,
+                                backgroundColor: Colors.black12,
+                                color: inDangerZone
+                                    ? Colors.amber.shade700
+                                    : (finalUnits > 200 ? Colors.red : Colors.teal),
                               ),
                             ),
+                            const SizedBox(height: 12),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
 
-              const SizedBox(height: 16),
-
-              // --- APPLIANCE SIMULATOR CARD ---
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.devices_other_rounded, color: Colors.teal),
-                              SizedBox(width: 8),
-                              Text("Appliance Simulator",
-                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text("Add"),
-                            onPressed: _showAddApplianceDialog,
+                          TextButton.icon(
+                            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                            label: const Text("View Itemized Tax Breakdown"),
+                            onPressed: _showBreakdownSheet,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Add home devices to estimate monthly unit consumption.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                        ),
-                      ),
-                      const Divider(height: 24),
-                      if (_appliances.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Icon(Icons.power_off_outlined,
-                                    size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 8),
-                                const Text("No appliances added yet",
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4),
-                                const Text("Tap '+ Add' to power on your devices",
-                                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ..._appliances.asMap().entries.map((entry) {
-                        int idx = entry.key;
-                        ApplianceItem item = entry.value;
-                        final icon = _getApplianceIcon(item.name);
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8.0),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.grey.shade900.withOpacity(0.5)
-                                : Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: borderColor),
-                          ),
-                          child: ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.teal.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(icon, color: Colors.teal),
-                            ),
-                            title: Text(
-                              item.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            subtitle: Text(
-                              "${item.wattage.toInt()}W  •  ${item.totalMonthlyUnits.toStringAsFixed(1)} Units/mo",
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline,
-                                      size: 20, color: Colors.grey),
-                                  onPressed: () {
-                                    setState(() {
-                                      if (item.quantity > 1) {
-                                        item.quantity--;
-                                      } else {
-                                        _appliances.removeAt(idx);
-                                      }
-                                      _calculateBill();
-                                    });
-                                  },
-                                ),
-                                Text(
-                                  "${item.quantity}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.add_circle_outline,
-                                      size: 20, color: Colors.teal),
-                                  onPressed: () {
-                                    setState(() {
-                                      item.quantity++;
-                                      _calculateBill();
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ],
+                    ),
                   ),
-                ),
-              ),
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              // --- ACCOUNT & TARIFF ADJUSTMENTS CARD WITH ANIMATED SHAKE ---
-              AnimatedBuilder(
-                animation: _shakeAnimation,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(_shakeAnimation.value, 0.0),
-                    child: child,
-                  );
-                },
-                child: Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Form(
-                      key: _formStateKey,
-                      autovalidateMode: AutovalidateMode.always,
+                  // --- PROVIDER SELECTION CARD ---
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          const Row(
-                            children: [
-                              Icon(Icons.tune_rounded, color: Colors.teal),
-                              SizedBox(width: 8),
-                              Text("Account Details & Adjustments",
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text("Protected Consumer Category",
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                            subtitle: const Text("≤200 units/mo for last 6 consecutive months",
-                                style: TextStyle(fontSize: 12)),
-                            value: _isProtected,
-                            activeColor: Colors.teal,
-                            onChanged: (bool val) {
-                              setState(() {
-                                _isProtected = val;
-                                _calculateBill();
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _sanctionedLoadController,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            value: _selectedProvider,
+                            isExpanded: true,
                             decoration: InputDecoration(
-                              labelText: 'Sanctioned Load (kW)',
-                              prefixIcon: const Icon(Icons.flash_on_rounded),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              helperText: 'Loads ≥ 5kW trigger ToU (Peak) billing.',
+                              labelText: 'Electricity Provider (DISCO)',
+                              prefixIcon: const Icon(Icons.electric_bolt, color: Colors.teal),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                             ),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter sanctioned load';
-                              }
-                              final num = double.tryParse(value.trim());
-                              if (num == null || num <= 0 || num > 100) {
-                                return 'Enter valid load (0.1 to 100 kW)';
-                              }
-                              return null;
-                            },
-                            onSaved: (value) =>
-                                _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.blue.shade900.withOpacity(0.3)
-                                  : Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12.0),
-                              border: Border.all(
-                                  color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline_rounded,
-                                  color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
-                                  size: 26,
+                            items: _providers.map((String provider) {
+                              return DropdownMenuItem<String>(
+                                value: provider,
+                                child: Text(
+                                  provider,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
                                 ),
-                                const SizedBox(width: 12),
+                              );
+                            }).toList(),
+                            onChanged: _onProviderChanged,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10.0, left: 4.0),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 16, color: Colors.teal),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for exact monthly rates.",
+                                    _peakHoursText,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: isDark ? Colors.grey.shade300 : Colors.black87,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _fpaController,
-                                  decoration: InputDecoration(
-                                    labelText: 'FPA Rate (Fuel)',
-                                    hintText: 'e.g. 2.5',
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) return null;
-                                    final num = double.tryParse(value.trim());
-                                    if (num == null || num < 0 || num > 50) {
-                                      return 'Rate 0 to 50';
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (value) =>
-                                      _fpaRate = double.tryParse(value ?? '') ?? 0.0,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _qtaController,
-                                  decoration: InputDecoration(
-                                    labelText: 'QTA Rate (Maint.)',
-                                    hintText: 'e.g. 1.2',
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) return null;
-                                    final num = double.tryParse(value.trim());
-                                    if (num == null || num < 0 || num > 50) {
-                                      return 'Rate 0 to 50';
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (value) =>
-                                      _qtaRate = double.tryParse(value ?? '') ?? 0.0,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.teal,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              icon: const Icon(Icons.calculate_rounded),
-                              label: const Text('Apply Tariffs & Calculate',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                              onPressed: () => _submitAdjustments(),
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // --- APPLIANCE SIMULATOR CARD ---
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.devices_other_rounded, color: Colors.teal),
+                                  SizedBox(width: 8),
+                                  Text("Appliance Simulator",
+                                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.teal,
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text("Add"),
+                                onPressed: _showAddApplianceDialog,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Add home devices to estimate monthly unit consumption.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                          const Divider(height: 24),
+                          if (_appliances.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.power_off_outlined,
+                                        size: 48, color: Colors.grey.shade400),
+                                    const SizedBox(height: 8),
+                                    const Text("No appliances added yet",
+                                        style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    const Text("Tap '+ Add' to power on your devices",
+                                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ..._appliances.asMap().entries.map((entry) {
+                            int idx = entry.key;
+                            ApplianceItem item = entry.value;
+                            final icon = _getApplianceIcon(item.name);
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8.0),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.grey.shade900.withOpacity(0.5)
+                                    : Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.teal.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(icon, color: Colors.teal),
+                                ),
+                                title: Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                subtitle: Text(
+                                  "${item.wattage.toInt()}W  •  ${item.totalMonthlyUnits.toStringAsFixed(1)} Units/mo",
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline,
+                                          size: 20, color: Colors.grey),
+                                      onPressed: () {
+                                        setState(() {
+                                          if (item.quantity > 1) {
+                                            item.quantity--;
+                                          } else {
+                                            _appliances.removeAt(idx);
+                                          }
+                                          _calculateBill();
+                                        });
+                                      },
+                                    ),
+                                    Text(
+                                      "${item.quantity}",
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline,
+                                          size: 20, color: Colors.teal),
+                                      onPressed: () {
+                                        setState(() {
+                                          item.quantity++;
+                                          _calculateBill();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // --- ACCOUNT & TARIFF ADJUSTMENTS CARD WITH ANIMATED SHAKE ---
+                  AnimatedBuilder(
+                    animation: _shakeAnimation,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(_shakeAnimation.value, 0.0),
+                        child: child,
+                      );
+                    },
+                    child: Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Form(
+                          key: _formStateKey,
+                          autovalidateMode: AutovalidateMode.always,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              const Row(
+                                children: [
+                                  Icon(Icons.tune_rounded, color: Colors.teal),
+                                  SizedBox(width: 8),
+                                  Text("Account Details & Adjustments",
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text("Protected Consumer Category",
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                subtitle: const Text("≤200 units/mo for last 6 consecutive months",
+                                    style: TextStyle(fontSize: 12)),
+                                value: _isProtected,
+                                activeColor: Colors.teal,
+                                onChanged: (bool val) {
+                                  setState(() {
+                                    _isProtected = val;
+                                    _calculateBill();
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _sanctionedLoadController,
+                                decoration: InputDecoration(
+                                  labelText: 'Sanctioned Load (kW)',
+                                  prefixIcon: const Icon(Icons.flash_on_rounded),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  helperText: 'Loads ≥ 5kW trigger ToU (Peak) billing.',
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter sanctioned load';
+                                  }
+                                  final num = double.tryParse(value.trim());
+                                  if (num == null || num <= 0 || num > 100) {
+                                    return 'Enter valid load (0.1 to 100 kW)';
+                                  }
+                                  return null;
+                                },
+                                onSaved: (value) =>
+                                    _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12.0),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.blue.shade900.withOpacity(0.3)
+                                      : Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(12.0),
+                                  border: Border.all(
+                                      color: isDark ? Colors.blue.shade700 : Colors.blue.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline_rounded,
+                                      color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                                      size: 26,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        "FPA (Fuel Cost) & QTA (Maintenance) change monthly. Check your physical bill for exact monthly rates.",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDark ? Colors.grey.shade300 : Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _fpaController,
+                                      decoration: InputDecoration(
+                                        labelText: 'FPA Rate (Fuel)',
+                                        hintText: 'e.g. 2.5',
+                                        border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) return null;
+                                        final num = double.tryParse(value.trim());
+                                        if (num == null || num < 0 || num > 50) {
+                                          return 'Rate 0 to 50';
+                                        }
+                                        return null;
+                                      },
+                                      onSaved: (value) =>
+                                          _fpaRate = double.tryParse(value ?? '') ?? 0.0,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _qtaController,
+                                      decoration: InputDecoration(
+                                        labelText: 'QTA Rate (Maint.)',
+                                        hintText: 'e.g. 1.2',
+                                        border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) return null;
+                                        final num = double.tryParse(value.trim());
+                                        if (num == null || num < 0 || num > 50) {
+                                          return 'Rate 0 to 50';
+                                        }
+                                        return null;
+                                      },
+                                      onSaved: (value) =>
+                                          _qtaRate = double.tryParse(value ?? '') ?? 0.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.teal,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  icon: const Icon(Icons.calculate_rounded),
+                                  label: const Text('Apply Tariffs & Calculate',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                  onPressed: () => _submitAdjustments(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Continuous Floating Small Logo Badge (Bottom-Right Corner)
+            Positioned(
+              bottom: 24,
+              right: 20,
+              child: AnimatedBuilder(
+                animation: _floatingLogoController,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(_floatXAnimation.value, _floatYAnimation.value),
+                    child: child,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    border: Border.all(
+                      color: Colors.teal.withOpacity(0.6),
+                      width: 1.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.teal.withOpacity(0.3),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'images/logo2.jpg',
+                      width: 34,
+                      height: 34,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

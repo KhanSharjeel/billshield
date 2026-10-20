@@ -32,8 +32,9 @@ void main() {
     // Initially displays Splash Screen
     expect(find.text('BillShield'), findsWidgets);
 
-    // Fast-forward 6 seconds for splash screen
-    await tester.pumpAndSettle(const Duration(seconds: 6));
+    // Fast-forward 6 seconds for splash screen transition
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(milliseconds: 500));
 
     // After splash screen, Dashboard is displayed
     expect(find.text('BillShield — Unit Predictor'), findsOneWidget);
