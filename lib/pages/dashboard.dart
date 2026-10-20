@@ -40,6 +40,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   final GlobalKey<FormState> _formStateKey = GlobalKey<FormState>();
 
   late AnimationController _resetSpinController;
+  late ScrollController _scrollController;
 
   late TextEditingController _sanctionedLoadController;
   late TextEditingController _fpaController;
@@ -79,6 +80,8 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
+    _scrollController = ScrollController();
+
     _resetSpinController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -94,6 +97,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
   @override
   void dispose() {
     _resetSpinController.dispose();
+    _scrollController.dispose();
     _sanctionedLoadController.dispose();
     _fpaController.dispose();
     _qtaController.dispose();
@@ -145,6 +149,23 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
 
       _calculateBill();
     });
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.refresh_rounded, color: Colors.tealAccent),
+            SizedBox(width: 10),
+            Text('Dashboard Values Reset to Defaults', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        backgroundColor: Colors.teal.shade900,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _onProviderChanged(String? newProvider) {
@@ -161,6 +182,45 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
     if (_formStateKey.currentState!.validate()) {
       _formStateKey.currentState!.save();
       _calculateBill();
+
+      // Smooth scroll back to top Hero Card
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeOutCubic,
+        );
+      }
+
+      final double newTotal = _billBreakdown['estimatedTotal'] ?? 0.0;
+
+      // Show immediate SnackBar feedback with View Breakdown action
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.tealAccent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tariffs Applied! New Estimated Bill: PKR ${newTotal.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.teal.shade900,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'View Breakdown',
+            textColor: Colors.tealAccent,
+            onPressed: _showBreakdownSheet,
+          ),
+        ),
+      );
     }
   }
 
@@ -485,6 +545,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
