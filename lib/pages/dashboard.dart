@@ -641,6 +641,8 @@ class _DashboardState extends State<Dashboard> {
                         const Text("Account Details & Adjustments",
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
+
+                        // Sanctioned Load with input validation
                         TextFormField(
                           initialValue: _sanctionedLoad.toString(),
                           decoration: const InputDecoration(
@@ -649,6 +651,12 @@ class _DashboardState extends State<Dashboard> {
                             helperText: 'Loads ≥ 5kW trigger ToU (Peak) billing.',
                           ),
                           keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return 'Enter load';
+                            double? load = double.tryParse(value);
+                            if (load == null || load <= 0 || load > 50) return 'Must be between 0.1 and 50 kW';
+                            return null;
+                          },
                           onSaved: (value) => _sanctionedLoad = double.tryParse(value ?? '') ?? 1.0,
                         ),
                         const SizedBox(height: 16),
@@ -677,6 +685,7 @@ class _DashboardState extends State<Dashboard> {
 
                         Row(
                           children: <Widget>[
+                            // FPA Rate with input validation
                             Expanded(
                               child: TextFormField(
                                 initialValue: _fpaRate.toString(),
@@ -684,11 +693,18 @@ class _DashboardState extends State<Dashboard> {
                                     labelText: 'FPA Rate (Fuel)',
                                     hintText: 'e.g. 2.5',
                                     border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
+                                keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  double? fpa = double.tryParse(value);
+                                  if (fpa == null || fpa < -50 || fpa > 100) return 'Range: -50 to 100';
+                                  return null;
+                                },
                                 onSaved: (value) => _fpaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
                             ),
                             const SizedBox(width: 8),
+                            // QTA Rate with input validation
                             Expanded(
                               child: TextFormField(
                                 initialValue: _qtaRate.toString(),
@@ -696,7 +712,13 @@ class _DashboardState extends State<Dashboard> {
                                     labelText: 'QTA Rate (Maint.)',
                                     hintText: 'e.g. 1.2',
                                     border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
+                                keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  double? qta = double.tryParse(value);
+                                  if (qta == null || qta < -50 || qta > 100) return 'Range: -50 to 100';
+                                  return null;
+                                },
                                 onSaved: (value) => _qtaRate = double.tryParse(value ?? '') ?? 0.0,
                               ),
                             ),
