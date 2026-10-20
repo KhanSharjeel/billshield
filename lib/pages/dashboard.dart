@@ -249,7 +249,23 @@ class _DashboardState extends State<Dashboard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BillShield Predictor'),
+        title: const Text('BillShield — Unit Predictor'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        // The actions list allows you to place widgets on the right side of the AppBar
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8), // Optional: rounds the corners of your logo
+              child: Image.asset(
+                'images/logo2.jpg',
+                height: 40,
+                width: 40,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
