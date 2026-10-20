@@ -298,7 +298,7 @@ class _DashboardState extends State<Dashboard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BillShield Predictor'),
+        title: const Text('BillShield'),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
