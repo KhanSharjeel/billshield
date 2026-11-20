@@ -18,6 +18,9 @@ class ApplianceTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
+        leading: CircleAvatar(
+          child: Icon(item.isPeakHours ? Icons.flash_on : Icons.power),
+        ),
         title: Text(
           '${item.name} (${item.quantity}x)',
           style: const TextStyle(fontWeight: FontWeight.w600),

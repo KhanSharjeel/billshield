@@ -22,12 +22,98 @@ class HomeSimulatorScreen extends StatefulWidget {
 
 class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
   String _selectedProvider = NepraTariffService.providers.first;
+  double _fpaRate = 2.50;
+  double _qtaRate = 1.75;
+
+  final TextEditingController _fpaController =
+  TextEditingController(text: '2.50');
+  final TextEditingController _qtaController =
+  TextEditingController(text: '1.75');
+
+  static const List<ApplianceItem> _presets = [
+    ApplianceItem(
+      name: '1.5T Inverter AC',
+      watts: 1500,
+      quantity: 1,
+      dailyHours: 6,
+      isPeakHours: true,
+    ),
+    ApplianceItem(
+      name: 'Ceiling Fan',
+      watts: 75,
+      quantity: 1,
+      dailyHours: 12,
+    ),
+    ApplianceItem(
+      name: 'Refrigerator',
+      watts: 160,
+      quantity: 1,
+      dailyHours: 14,
+    ),
+    ApplianceItem(
+      name: 'Electric Iron',
+      watts: 1200,
+      quantity: 1,
+      dailyHours: 1,
+    ),
+    ApplianceItem(
+      name: 'Water Pump',
+      watts: 746,
+      quantity: 1,
+      dailyHours: 1,
+    ),
+    ApplianceItem(
+      name: 'LED TV',
+      watts: 85,
+      quantity: 1,
+      dailyHours: 4,
+      isPeakHours: true,
+    ),
+  ];
 
   final List<ApplianceItem> _appliances = [
-    const ApplianceItem(name: 'Ceiling Fan', watts: 75, quantity: 3, dailyHours: 10),
-    const ApplianceItem(name: 'LED Lights', watts: 12, quantity: 6, dailyHours: 6),
-    const ApplianceItem(name: 'Refrigerator', watts: 150, quantity: 1, dailyHours: 14),
+    const ApplianceItem(
+      name: 'Ceiling Fan',
+      watts: 75,
+      quantity: 3,
+      dailyHours: 10,
+    ),
+    const ApplianceItem(
+      name: 'LED Lights',
+      watts: 12,
+      quantity: 6,
+      dailyHours: 6,
+    ),
+    const ApplianceItem(
+      name: 'Refrigerator',
+      watts: 150,
+      quantity: 1,
+      dailyHours: 14,
+    ),
   ];
+
+  @override
+  void dispose() {
+    _fpaController.dispose();
+    _qtaController.dispose();
+    super.dispose();
+  }
+
+  void _applyAdjustmentRates() {
+    final parsedFpa = double.tryParse(_fpaController.text.trim());
+    final parsedQta = double.tryParse(_qtaController.text.trim());
+    setState(() {
+      if (parsedFpa != null && parsedFpa >= 0) _fpaRate = parsedFpa;
+      if (parsedQta != null && parsedQta >= 0) _qtaRate = parsedQta;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Applied FPA: Rs. ${_fpaRate.toStringAsFixed(2)}/u, QTA: Rs. ${_qtaRate.toStringAsFixed(2)}/u',
+        ),
+      ),
+    );
+  }
 
   void _showAddApplianceDialog() {
     final nameController = TextEditingController();
@@ -112,7 +198,11 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
     final calculation = NepraTariffService.calculateBill(
       provider: _selectedProvider,
       appliances: _appliances,
+      fpaRatePerUnit: _fpaRate,
+      qtaRatePerUnit: _qtaRate,
     );
+
+    final slabProgress = (calculation.totalUnits / 200.0).clamp(0.0, 1.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -121,7 +211,9 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
           if (widget.onThemeChanged != null)
             IconButton(
               tooltip: 'Toggle Theme',
-              icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+              icon: Icon(
+                widget.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              ),
               onPressed: () => widget.onThemeChanged!(!widget.isDarkMode),
             ),
           IconButton(
@@ -139,7 +231,7 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddApplianceDialog,
         icon: const Icon(Icons.add),
-        label: const Text('Appliance'),
+        label: const Text('Custom'),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
@@ -166,40 +258,136 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Estimated Monthly Bill'),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Rs. ${calculation.totalBill.toStringAsFixed(0)}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Estimated Monthly Bill'),
+                          const SizedBox(height: 4),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            child: Text(
+                              'Rs. ${calculation.totalBill.toStringAsFixed(0)}',
+                              key: ValueKey(calculation.totalBill.round()),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Text(
+                            '${calculation.totalUnits.toStringAsFixed(1)} kWh / month',
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${calculation.totalUnits.toStringAsFixed(1)} kWh / month',
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BillBreakdownScreen(
+                                calculation: calculation,
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text('Breakdown'),
                       ),
                     ],
                   ),
-                  FilledButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              BillBreakdownScreen(calculation: calculation),
-                        ),
-                      );
-                    },
-                    child: const Text('Breakdown'),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: slabProgress,
+                      minHeight: 8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Protected Slab Progress: ${calculation.totalUnits.toStringAsFixed(0)} / 200 units',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ExpansionTile(
+              title: const Text('FPA & QTA Tariff Adjustments'),
+              subtitle: Text(
+                'FPA: Rs. ${_fpaRate.toStringAsFixed(2)}/u • QTA: Rs. ${_qtaRate.toStringAsFixed(2)}/u',
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _fpaController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'FPA (Rs./unit)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _qtaController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'QTA (Rs./unit)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonal(
+                    onPressed: _applyAdjustmentRates,
+                    child: const Text('Apply Rates'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Quick-Add Pakistani Appliances',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 42,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _presets.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final preset = _presets[index];
+                return ActionChip(
+                  avatar: const Icon(Icons.bolt, size: 18),
+                  label: Text('${preset.name} (${preset.watts.toInt()}W)'),
+                  onPressed: () {
+                    setState(() => _appliances.add(preset));
+                  },
+                );
+              },
             ),
           ),
           const SizedBox(height: 16),
@@ -212,7 +400,9 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
-                child: Text('Tap + Appliance to simulate your monthly load.'),
+                child: Text(
+                  'Tap a preset chip above or + Custom to simulate your load.',
+                ),
               ),
             )
           else

@@ -22,7 +22,10 @@ void main() {
       expect(result.offPeakUnits, closeTo(150.0, 0.001));
       expect(result.peakUnits, closeTo(0.0, 0.001));
       expect(result.isProtected, isTrue);
-      expect(result.baseEnergyCharge, closeTo((100 * 11.69) + (50 * 14.16), 0.01));
+      expect(
+        result.baseEnergyCharge,
+        closeTo((100 * 11.69) + (50 * 14.16), 0.01),
+      );
       expect(result.totalBill, greaterThan(result.baseEnergyCharge));
     });
 
@@ -56,7 +59,8 @@ void main() {
       const expectedFpa = 285.0 * 2.50;
       const expectedQta = 285.0 * 1.75;
       const expectedGst = (expectedBase + expectedFpa + expectedQta) * 0.18;
-      const expectedTotal = expectedBase + expectedFpa + expectedQta + expectedGst;
+      const expectedTotal =
+          expectedBase + expectedFpa + expectedQta + expectedGst;
 
       expect(result.baseEnergyCharge, closeTo(expectedBase, 0.01));
       expect(result.fpaCharge, closeTo(expectedFpa, 0.01));
@@ -80,6 +84,25 @@ void main() {
       expect(result.qtaCharge, 0.0);
       expect(result.gstAndDuties, 0.0);
       expect(result.totalBill, 0.0);
+    });
+
+    test('applies custom FPA and QTA rates accurately', () {
+      final result = NepraTariffService.calculateBill(
+        provider: 'IESCO',
+        appliances: const [
+          ApplianceItem(
+            name: 'Fans',
+            watts: 100,
+            quantity: 2,
+            dailyHours: 25,
+          ),
+        ],
+        fpaRatePerUnit: 3.20,
+        qtaRatePerUnit: 2.10,
+      );
+
+      expect(result.fpaCharge, closeTo(150.0 * 3.20, 0.01));
+      expect(result.qtaCharge, closeTo(150.0 * 2.10, 0.01));
     });
   });
 }
