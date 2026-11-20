@@ -52,11 +52,11 @@ void main() {
       expect(result.totalUnits, closeTo(285.0, 0.001));
       expect(result.isProtected, isFalse);
 
-      final expectedBase = (60.0 * 23.59) + (225.0 * 48.00);
-      final expectedFpa = 285.0 * 2.50;
-      final expectedQta = 285.0 * 1.75;
-      final expectedGst = (expectedBase + expectedFpa + expectedQta) * 0.18;
-      final expectedTotal = expectedBase + expectedFpa + expectedQta + expectedGst;
+      const expectedBase = (60.0 * 23.59) + (225.0 * 48.00);
+      const expectedFpa = 285.0 * 2.50;
+      const expectedQta = 285.0 * 1.75;
+      const expectedGst = (expectedBase + expectedFpa + expectedQta) * 0.18;
+      const expectedTotal = expectedBase + expectedFpa + expectedQta + expectedGst;
 
       expect(result.baseEnergyCharge, closeTo(expectedBase, 0.01));
       expect(result.fpaCharge, closeTo(expectedFpa, 0.01));
