@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'pages/splash_screen.dart';
+import 'package:billshield/screens/home_simulator_screen.dart';
+import 'package:billshield/services/hive_storage_service.dart';
 
-void main() => runApp(const BillShieldApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveStorageService.init();
+  runApp(const BillShieldApp());
+}
 
 class BillShieldApp extends StatefulWidget {
-  const BillShieldApp({Key? key}) : super(key: key);
+  const BillShieldApp({super.key});
 
   @override
   State<BillShieldApp> createState() => _BillShieldAppState();
@@ -39,7 +44,7 @@ class _BillShieldAppState extends State<BillShieldApp> {
         ),
       ),
       themeMode: _themeMode,
-      home: SplashScreen(
+      home: HomeSimulatorScreen(
         isDarkMode: _themeMode == ThemeMode.dark,
         onThemeChanged: _toggleTheme,
       ),
