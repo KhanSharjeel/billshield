@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:billshield/models/appliance_item.dart';
 
 class ApplianceTile extends StatelessWidget {
