@@ -3,11 +3,15 @@ import 'package:material_ui/material_ui.dart';
 class SlabStatusBanner extends StatelessWidget {
   final double totalUnits;
   final bool isProtected;
+  final double excessUnits;
+  final double potentialSavings;
 
   const SlabStatusBanner({
     super.key,
     required this.totalUnits,
     required this.isProtected,
+    this.excessUnits = 0.0,
+    this.potentialSavings = 0.0,
   });
 
   @override
@@ -50,7 +54,7 @@ class SlabStatusBanner extends StatelessWidget {
                 Text(
                   isProtected
                       ? '${remainingToThreshold.toStringAsFixed(1)} units remaining before unprotected slab jump.'
-                      : '200-unit threshold exceeded. Higher tariff slabs & peak rates apply.',
+                      : 'Cut ${excessUnits.toStringAsFixed(1)} kWh/mo to drop back under 200 units (~Rs. ${potentialSavings.toStringAsFixed(0)} potential savings).',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

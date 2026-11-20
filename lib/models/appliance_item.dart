@@ -33,4 +33,24 @@ class ApplianceItem {
       isPeakHours: isPeakHours ?? this.isPeakHours,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'watts': watts,
+      'quantity': quantity,
+      'dailyHours': dailyHours,
+      'isPeakHours': isPeakHours,
+    };
+  }
+
+  factory ApplianceItem.fromMap(Map<dynamic, dynamic> map) {
+    return ApplianceItem(
+      name: map['name'] as String? ?? 'Appliance',
+      watts: (map['watts'] as num?)?.toDouble() ?? 0.0,
+      quantity: (map['quantity'] as num?)?.toInt() ?? 1,
+      dailyHours: (map['dailyHours'] as num?)?.toDouble() ?? 0.0,
+      isPeakHours: map['isPeakHours'] as bool? ?? false,
+    );
+  }
 }

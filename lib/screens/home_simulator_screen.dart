@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:billshield/models/appliance_item.dart';
+import 'package:billshield/services/hive_storage_service.dart';
 import 'package:billshield/services/nepra_tariff_service.dart';
 import 'package:billshield/widgets/appliance_tile.dart';
 import 'package:billshield/widgets/slab_status_banner.dart';
@@ -24,11 +25,12 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
   String _selectedProvider = NepraTariffService.providers.first;
   double _fpaRate = 2.50;
   double _qtaRate = 1.75;
+  double _fixedCharges = 0.0;
+  bool _includeMeterRent = true;
 
-  final TextEditingController _fpaController =
-  TextEditingController(text: '2.50');
-  final TextEditingController _qtaController =
-  TextEditingController(text: '1.75');
+  late final TextEditingController _fpaController;
+  late final TextEditingController _qtaController;
+  late final TextEditingController _fixedController;
 
   static const List<ApplianceItem> _presets = [
     ApplianceItem(
@@ -71,7 +73,7 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
     ),
   ];
 
-  final List<ApplianceItem> _appliances = [
+  List<ApplianceItem> _appliances = [
     const ApplianceItem(
       name: 'Ceiling Fan',
       watts: 75,
@@ -93,40 +95,85 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final saved = HiveStorageService.loadWorkspace();
+    if (saved != null) {
+      final loadedProvider = saved['provider'] as String?;
+      if (loadedProvider != null &&
+          NepraTariffService.providers.contains(loadedProvider)) {
+        _selectedProvider = loadedProvider;
+      }
+      final loadedAppliances =
+          saved['appliances'] as List<ApplianceItem>? ?? const [];
+      if (loadedAppliances.isNotEmpty) {
+        _appliances = List<ApplianceItem>.from(loadedAppliances);
+      }
+      _fpaRate = (saved['fpaRate'] as double?) ?? 2.50;
+      _qtaRate = (saved['qtaRate'] as double?) ?? 1.75;
+      _fixedCharges = (saved['fixedCharges'] as double?) ?? 0.0;
+      _includeMeterRent = (saved['includeMeterRent'] as bool?) ?? true;
+    }
+
+    _fpaController = TextEditingController(text: _fpaRate.toStringAsFixed(2));
+    _qtaController = TextEditingController(text: _qtaRate.toStringAsFixed(2));
+    _fixedController =
+        TextEditingController(text: _fixedCharges.toStringAsFixed(2));
+  }
+
+  @override
   void dispose() {
     _fpaController.dispose();
     _qtaController.dispose();
+    _fixedController.dispose();
     super.dispose();
   }
 
-  void _applyAdjustmentRates() {
-    final parsedFpa = double.tryParse(_fpaController.text.trim());
-    final parsedQta = double.tryParse(_qtaController.text.trim());
-    setState(() {
-      if (parsedFpa != null && parsedFpa >= 0) _fpaRate = parsedFpa;
-      if (parsedQta != null && parsedQta >= 0) _qtaRate = parsedQta;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Applied FPA: Rs. ${_fpaRate.toStringAsFixed(2)}/u, QTA: Rs. ${_qtaRate.toStringAsFixed(2)}/u',
-        ),
-      ),
+  void _persistWorkspace() {
+    HiveStorageService.saveWorkspace(
+      provider: _selectedProvider,
+      appliances: _appliances,
+      fpaRate: _fpaRate,
+      qtaRate: _qtaRate,
+      fixedCharges: _fixedCharges,
+      includeMeterRent: _includeMeterRent,
     );
   }
 
-  void _showAddApplianceDialog() {
-    final nameController = TextEditingController();
-    final wattsController = TextEditingController();
-    final qtyController = TextEditingController(text: '1');
-    final hoursController = TextEditingController(text: '4');
-    bool isPeak = false;
+  void _applyTariffSettings() {
+    final parsedFpa = double.tryParse(_fpaController.text.trim());
+    final parsedQta = double.tryParse(_qtaController.text.trim());
+    final parsedFixed = double.tryParse(_fixedController.text.trim());
+    setState(() {
+      if (parsedFpa != null && parsedFpa >= 0) _fpaRate = parsedFpa;
+      if (parsedQta != null && parsedQta >= 0) _qtaRate = parsedQta;
+      if (parsedFixed != null && parsedFixed >= 0) _fixedCharges = parsedFixed;
+    });
+    _persistWorkspace();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Tariff adjustments updated.')),
+    );
+  }
+
+  void _showApplianceDialog({ApplianceItem? existing, int? index}) {
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final wattsController = TextEditingController(
+      text: existing != null ? existing.watts.toStringAsFixed(0) : '',
+    );
+    final qtyController = TextEditingController(
+      text: (existing?.quantity ?? 1).toString(),
+    );
+    final hoursController = TextEditingController(
+      text: existing != null ? existing.dailyHours.toStringAsFixed(1) : '4.0',
+    );
+    bool isPeak = existing?.isPeakHours ?? false;
+    final isEditing = existing != null && index != null;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Appliance'),
+          title: Text(isEditing ? 'Edit Appliance' : 'Add Appliance'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -171,21 +218,25 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
                 final qty = int.tryParse(qtyController.text) ?? 1;
                 final hours = double.tryParse(hoursController.text) ?? 0;
                 if (name.isNotEmpty && watts > 0 && qty > 0 && hours > 0) {
+                  final updated = ApplianceItem(
+                    name: name,
+                    watts: watts,
+                    quantity: qty,
+                    dailyHours: hours,
+                    isPeakHours: isPeak,
+                  );
                   setState(() {
-                    _appliances.add(
-                      ApplianceItem(
-                        name: name,
-                        watts: watts,
-                        quantity: qty,
-                        dailyHours: hours,
-                        isPeakHours: isPeak,
-                      ),
-                    );
+                    if (isEditing) {
+                      _appliances[index] = updated;
+                    } else {
+                      _appliances.add(updated);
+                    }
                   });
+                  _persistWorkspace();
                   Navigator.pop(ctx);
                 }
               },
-              child: const Text('Add'),
+              child: Text(isEditing ? 'Save' : 'Add'),
             ),
           ],
         ),
@@ -200,6 +251,8 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
       appliances: _appliances,
       fpaRatePerUnit: _fpaRate,
       qtaRatePerUnit: _qtaRate,
+      includeMeterRent: _includeMeterRent,
+      fixedChargesRate: _fixedCharges,
     );
 
     final slabProgress = (calculation.totalUnits / 200.0).clamp(0.0, 1.0);
@@ -229,7 +282,7 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddApplianceDialog,
+        onPressed: () => _showApplianceDialog(),
         icon: const Icon(Icons.add),
         label: const Text('Custom'),
       ),
@@ -246,13 +299,18 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
                 .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                 .toList(),
             onChanged: (val) {
-              if (val != null) setState(() => _selectedProvider = val);
+              if (val != null) {
+                setState(() => _selectedProvider = val);
+                _persistWorkspace();
+              }
             },
           ),
           const SizedBox(height: 12),
           SlabStatusBanner(
             totalUnits: calculation.totalUnits,
             isProtected: calculation.isProtected,
+            excessUnits: calculation.excessUnitsOverProtected,
+            potentialSavings: calculation.estimatedSavingsIfProtected,
           ),
           const SizedBox(height: 12),
           Card(
@@ -320,9 +378,10 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
           const SizedBox(height: 8),
           Card(
             child: ExpansionTile(
-              title: const Text('FPA & QTA Tariff Adjustments'),
+              title: const Text('FPA, QTA & Bill Charges'),
               subtitle: Text(
-                'FPA: Rs. ${_fpaRate.toStringAsFixed(2)}/u • QTA: Rs. ${_qtaRate.toStringAsFixed(2)}/u',
+                'FPA: Rs. ${_fpaRate.toStringAsFixed(2)} • QTA: Rs. ${_qtaRate.toStringAsFixed(2)} • '
+                    'Meter Rent: ${_includeMeterRent ? "On" : "Off"}',
               ),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               children: [
@@ -335,12 +394,12 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
                           decimal: true,
                         ),
                         decoration: const InputDecoration(
-                          labelText: 'FPA (Rs./unit)',
+                          labelText: 'FPA (Rs./u)',
                           border: OutlineInputBorder(),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _qtaController,
@@ -348,19 +407,40 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
                           decimal: true,
                         ),
                         decoration: const InputDecoration(
-                          labelText: 'QTA (Rs./unit)',
+                          labelText: 'QTA (Rs./u)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _fixedController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Fixed (Rs.)',
                           border: OutlineInputBorder(),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Include Meter Rent (Rs. 50)'),
+                  value: _includeMeterRent,
+                  onChanged: (v) {
+                    setState(() => _includeMeterRent = v);
+                    _persistWorkspace();
+                  },
+                ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: FilledButton.tonal(
-                    onPressed: _applyAdjustmentRates,
-                    child: const Text('Apply Rates'),
+                    onPressed: _applyTariffSettings,
+                    child: const Text('Apply'),
                   ),
                 ),
               ],
@@ -385,6 +465,7 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
                   label: Text('${preset.name} (${preset.watts.toInt()}W)'),
                   onPressed: () {
                     setState(() => _appliances.add(preset));
+                    _persistWorkspace();
                   },
                 );
               },
@@ -392,7 +473,7 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Simulated Appliances (${_appliances.length})',
+            'Simulated Appliances (${_appliances.length}) • Tap to edit',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 6),
@@ -408,13 +489,26 @@ class _HomeSimulatorScreenState extends State<HomeSimulatorScreen> {
           else
             ...List.generate(_appliances.length, (index) {
               final item = _appliances[index];
+              final applianceCost =
+              NepraTariffService.estimateApplianceMonthlyCost(
+                item: item,
+                isProtected: calculation.isProtected,
+                fpaRatePerUnit: _fpaRate,
+                qtaRatePerUnit: _qtaRate,
+              );
               return ApplianceTile(
                 item: item,
-                onDelete: () => setState(() => _appliances.removeAt(index)),
+                estimatedMonthlyCost: applianceCost,
+                onTap: () => _showApplianceDialog(existing: item, index: index),
+                onDelete: () {
+                  setState(() => _appliances.removeAt(index));
+                  _persistWorkspace();
+                },
                 onPeakChanged: (peak) {
                   setState(() {
                     _appliances[index] = item.copyWith(isPeakHours: peak);
                   });
+                  _persistWorkspace();
                 },
               );
             }),

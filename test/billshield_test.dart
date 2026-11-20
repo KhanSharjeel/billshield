@@ -22,6 +22,8 @@ void main() {
       expect(result.offPeakUnits, closeTo(150.0, 0.001));
       expect(result.peakUnits, closeTo(0.0, 0.001));
       expect(result.isProtected, isTrue);
+      expect(result.excessUnitsOverProtected, 0.0);
+      expect(result.estimatedSavingsIfProtected, 0.0);
       expect(
         result.baseEnergyCharge,
         closeTo((100 * 11.69) + (50 * 14.16), 0.01),
@@ -54,17 +56,24 @@ void main() {
       expect(result.offPeakUnits, closeTo(60.0, 0.001));
       expect(result.totalUnits, closeTo(285.0, 0.001));
       expect(result.isProtected, isFalse);
+      expect(result.excessUnitsOverProtected, closeTo(85.0, 0.001));
+      expect(result.estimatedSavingsIfProtected, greaterThan(0.0));
 
       const expectedBase = (60.0 * 23.59) + (225.0 * 48.00);
       const expectedFpa = 285.0 * 2.50;
       const expectedQta = 285.0 * 1.75;
+      const expectedMeterRent = 50.0;
       const expectedGst = (expectedBase + expectedFpa + expectedQta) * 0.18;
-      const expectedTotal =
-          expectedBase + expectedFpa + expectedQta + expectedGst;
+      const expectedTotal = expectedBase +
+          expectedFpa +
+          expectedQta +
+          expectedGst +
+          expectedMeterRent;
 
       expect(result.baseEnergyCharge, closeTo(expectedBase, 0.01));
       expect(result.fpaCharge, closeTo(expectedFpa, 0.01));
       expect(result.qtaCharge, closeTo(expectedQta, 0.01));
+      expect(result.meterRent, closeTo(expectedMeterRent, 0.01));
       expect(result.gstAndDuties, closeTo(expectedGst, 0.01));
       expect(result.totalBill, closeTo(expectedTotal, 0.01));
     });
@@ -82,11 +91,13 @@ void main() {
       expect(result.baseEnergyCharge, 0.0);
       expect(result.fpaCharge, 0.0);
       expect(result.qtaCharge, 0.0);
+      expect(result.fixedCharges, 0.0);
+      expect(result.meterRent, 0.0);
       expect(result.gstAndDuties, 0.0);
       expect(result.totalBill, 0.0);
     });
 
-    test('applies custom FPA and QTA rates accurately', () {
+    test('applies custom FPA, QTA, fixed charges, and optional meter rent accurately', () {
       final result = NepraTariffService.calculateBill(
         provider: 'IESCO',
         appliances: const [
@@ -99,10 +110,14 @@ void main() {
         ],
         fpaRatePerUnit: 3.20,
         qtaRatePerUnit: 2.10,
+        fixedChargesRate: 200.0,
+        includeMeterRent: false,
       );
 
       expect(result.fpaCharge, closeTo(150.0 * 3.20, 0.01));
       expect(result.qtaCharge, closeTo(150.0 * 2.10, 0.01));
+      expect(result.fixedCharges, closeTo(200.0, 0.01));
+      expect(result.meterRent, 0.0);
     });
   });
 }
