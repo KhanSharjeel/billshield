@@ -1,6 +1,7 @@
 ﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:billshield/models/appliance_item.dart';
 import 'package:billshield/services/nepra_tariff_service.dart';
+import 'package:billshield/services/appliance_calculator.dart';
 
 void main() {
   group('NepraTariffService.calculateBill', () {
@@ -118,6 +119,68 @@ void main() {
       expect(result.qtaCharge, closeTo(150.0 * 2.10, 0.01));
       expect(result.fixedCharges, closeTo(200.0, 0.01));
       expect(result.meterRent, 0.0);
+    });
+
+    test('applies Three-Phase meter rent of 100 PKR correctly', () {
+      final result = NepraTariffService.calculateBill(
+        provider: 'IESCO',
+        appliances: const [
+          ApplianceItem(
+            name: 'Inverter AC',
+            watts: 1500,
+            quantity: 1,
+            dailyHours: 4,
+          ),
+        ],
+        isThreePhase: true,
+      );
+
+      expect(result.isThreePhase, isTrue);
+      expect(result.meterRent, 100.0);
+    });
+
+    test('enforces 6-month unprotected lock rule even when units <= 200', () {
+      final result = NepraTariffService.calculateBill(
+        provider: 'LESCO',
+        appliances: const [
+          ApplianceItem(
+            name: 'Fan',
+            watts: 75,
+            quantity: 2,
+            dailyHours: 10,
+          ),
+        ],
+        is6MonthUnprotectedLocked: true,
+      );
+
+      expect(result.totalUnits, 45.0);
+      expect(result.isProtected, isFalse);
+      expect(result.is6MonthUnprotectedLocked, isTrue);
+    });
+  });
+
+  group('ApplianceCalculator.getTopActionableSuggestion', () {
+    test('generates an actionable hour reduction suggestion when consumption > 200 units', () {
+      const list = [
+        ApplianceItem(
+          name: '1.5T Inverter AC',
+          watts: 1500,
+          quantity: 1,
+          dailyHours: 6.0,
+        ),
+        ApplianceItem(
+          name: 'Ceiling Fan',
+          watts: 75,
+          quantity: 2,
+          dailyHours: 10.0,
+        ),
+      ];
+
+      final suggestion = ApplianceCalculator.getTopActionableSuggestion(list, 315.0);
+      expect(suggestion, isNotNull);
+      expect(suggestion!.targetAppliance.name, '1.5T Inverter AC');
+      expect(suggestion.newDailyHours, lessThan(6.0));
+      expect(suggestion.savedKwh, greaterThan(0.0));
     });
   });
 }

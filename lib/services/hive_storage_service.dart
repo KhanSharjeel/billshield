@@ -35,6 +35,10 @@ class HiveStorageService {
     }
   }
 
+  static Future<void> clearAllBills() async {
+    await _billsBox.clear();
+  }
+
   static Future<void> saveWorkspace({
     required String provider,
     required List<ApplianceItem> appliances,
@@ -42,6 +46,9 @@ class HiveStorageService {
     required double qtaRate,
     required double fixedCharges,
     required bool includeMeterRent,
+    bool includeTvFee = false,
+    bool isThreePhase = false,
+    bool is6MonthUnprotectedLocked = false,
   }) async {
     await _workspaceBox.putAll({
       'provider': provider,
@@ -50,6 +57,9 @@ class HiveStorageService {
       'qtaRate': qtaRate,
       'fixedCharges': fixedCharges,
       'includeMeterRent': includeMeterRent,
+      'includeTvFee': includeTvFee,
+      'isThreePhase': isThreePhase,
+      'is6MonthUnprotectedLocked': is6MonthUnprotectedLocked,
     });
   }
 
@@ -58,9 +68,9 @@ class HiveStorageService {
     final rawAppliances = _workspaceBox.get('appliances');
     final parsedAppliances = rawAppliances is List
         ? rawAppliances
-        .whereType()
-        .map((m) => ApplianceItem.fromMap(m))
-        .toList()
+            .whereType()
+            .map((m) => ApplianceItem.fromMap(m))
+            .toList()
         : <ApplianceItem>[];
 
     return {
@@ -69,9 +79,13 @@ class HiveStorageService {
       'fpaRate': (_workspaceBox.get('fpaRate') as num?)?.toDouble() ?? 2.50,
       'qtaRate': (_workspaceBox.get('qtaRate') as num?)?.toDouble() ?? 1.75,
       'fixedCharges':
-      (_workspaceBox.get('fixedCharges') as num?)?.toDouble() ?? 0.0,
+          (_workspaceBox.get('fixedCharges') as num?)?.toDouble() ?? 0.0,
       'includeMeterRent':
-      _workspaceBox.get('includeMeterRent') as bool? ?? true,
+          _workspaceBox.get('includeMeterRent') as bool? ?? true,
+      'includeTvFee': _workspaceBox.get('includeTvFee') as bool? ?? false,
+      'isThreePhase': _workspaceBox.get('isThreePhase') as bool? ?? false,
+      'is6MonthUnprotectedLocked':
+          _workspaceBox.get('is6MonthUnprotectedLocked') as bool? ?? false,
     };
   }
 }
